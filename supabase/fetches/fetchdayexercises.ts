@@ -4,10 +4,10 @@ export type DayExerciseWithName = {
   day_id: string
   exercise_def_id: string
   exercise_name: string
-  sets: number
-  reps: number
-  rir: number | null
-  rpe: number | null
+  sets: string | null // numrange in PostgreSQL format
+  reps: string | null // numrange in PostgreSQL format
+  rir: string | null // numrange in PostgreSQL format
+  rpe: string | null // numrange in PostgreSQL format
   notes: string
   weight_used: number | null
 }

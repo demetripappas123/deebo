@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash } from "lucide-react";
 import { fetchExercises } from "@/supabase/fetches/fetchexlib";
 import { fetchDayExercises, DayExerciseWithName } from "@/supabase/fetches/fetchdayexercises";
+import { formatRangeDisplay } from "@/supabase/utils/rangeparse";
 import {
   Command,
   CommandInput,
@@ -19,10 +20,10 @@ type LocalDayExercise = {
   exercise_id?: string;
   day_id?: string;
   name: string;
-  sets: number;
-  reps: number;
-  rir: number | null;
-  rpe: number | null;
+  sets: string; // Range input like "2-3" or "3"
+  reps: string; // Range input like "2-3" or "3"
+  rir: string | null; // Range input like "2-3" or "3"
+  rpe: string | null; // Range input like "2-3" or "3"
   weight: number | null;
   notes: string;
 };
@@ -58,10 +59,10 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
             const existingExercises = await fetchDayExercises(dayId);
             const mappedExercises: LocalDayExercise[] = existingExercises.map(ex => ({
               name: ex.exercise_name,
-              sets: ex.sets,
-              reps: ex.reps,
-              rir: ex.rir,
-              rpe: ex.rpe,
+              sets: formatRangeDisplay(ex.sets) || "",
+              reps: formatRangeDisplay(ex.reps) || "",
+              rir: formatRangeDisplay(ex.rir),
+              rpe: formatRangeDisplay(ex.rpe),
               weight: ex.weight_used,
               notes: ex.notes || '',
             }));
@@ -101,8 +102,8 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
       ...prev,
       {
         name: "",
-        sets: 0,
-        reps: 0,
+        sets: "",
+        reps: "",
         rir: null,
         rpe: null,
         weight: null,
@@ -242,49 +243,55 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
                 </div>
 
                 <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <label className="text-xs text-gray-300 mb-1 block">Sets</label>
-                    <Input
-                      type="number"
-                      value={ex.sets}
-                      onChange={(e) => updateExercise(index, "sets", Number(e.target.value))}
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                    />
-                  </div>
+                   <div className="flex-1">
+                     <label className="text-xs text-gray-300 mb-1 block">Sets</label>
+                     <Input
+                       type="text"
+                       value={ex.sets || ""}
+                       onChange={(e) => {
+                         updateExercise(index, "sets", e.target.value);
+                       }}
+                       placeholder="e.g. 3 or 2-4"
+                       className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm"
+                     />
+                   </div>
 
-                  <div className="flex-1">
-                    <label className="text-xs text-gray-300 mb-1 block">Reps</label>
-                    <Input
-                      type="number"
-                      value={ex.reps}
-                      onChange={(e) => updateExercise(index, "reps", Number(e.target.value))}
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                    />
-                  </div>
+                   <div className="flex-1">
+                     <label className="text-xs text-gray-300 mb-1 block">Reps</label>
+                     <Input
+                       type="text"
+                       value={ex.reps || ""}
+                       onChange={(e) => {
+                         updateExercise(index, "reps", e.target.value);
+                       }}
+                       placeholder="e.g. 8 or 6-10"
+                       className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm"
+                     />
+                   </div>
 
                   <div className="flex-1">
                     <label className="text-xs text-gray-300 mb-1 block">RIR</label>
                     <Input
-                      type="number"
+                      type="text"
                       value={ex.rir ?? ""}
                       onChange={(e) =>
-                        updateExercise(index, "rir", e.target.value === "" ? null : Number(e.target.value))
+                        updateExercise(index, "rir", e.target.value === "" ? null : e.target.value)
                       }
-                      placeholder="—"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      placeholder="e.g. 2 or 1-3"
+                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm"
                     />
                   </div>
 
                   <div className="flex-1">
                     <label className="text-xs text-gray-300 mb-1 block">RPE</label>
                     <Input
-                      type="number"
+                      type="text"
                       value={ex.rpe ?? ""}
                       onChange={(e) =>
-                        updateExercise(index, "rpe", e.target.value === "" ? null : Number(e.target.value))
+                        updateExercise(index, "rpe", e.target.value === "" ? null : e.target.value)
                       }
-                      placeholder="—"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      placeholder="e.g. 7 or 6-8"
+                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm"
                     />
                   </div>
 

@@ -11,6 +11,7 @@ import { addDay, updateDay } from '@/supabase/upserts/upsertday'
 import { upsertDayExercises, updateDayExercises, DayExercise } from '@/supabase/upserts/upsertexercises'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
 import { fetchDayExercises, DayExerciseWithName } from '@/supabase/fetches/fetchdayexercises'
+import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import AddDayDialog from '@/modules/programs/adddaydialog'
 
 type Program = {
@@ -148,10 +149,10 @@ export default function ProgramPage() {
           return {
             day_id: dayId,
             exercise_def_id: exercise.id,
-            sets: ex.sets,
-            reps: ex.reps,
-            rir: ex.rir ?? null,
-            rpe: ex.rpe ?? null,
+            sets: ex.sets && ex.sets.trim() ? parseRangeInput(ex.sets) ?? null : null,
+            reps: ex.reps && ex.reps.trim() ? parseRangeInput(ex.reps) ?? null : null,
+            rir: ex.rir && ex.rir.trim() ? parseRangeInput(ex.rir) ?? null : null,
+            rpe: ex.rpe && ex.rpe.trim() ? parseRangeInput(ex.rpe) ?? null : null,
             notes: ex.notes || '',
             weight_used: ex.weight ?? null,
           }
@@ -241,10 +242,10 @@ export default function ProgramPage() {
                             >
                               <div className="font-medium text-white">{exercise.exercise_name}</div>
                               <div className="text-xs text-gray-400">
-                                {exercise.sets}×{exercise.reps}
+                                {formatRangeDisplay(exercise.sets) || "—"}×{formatRangeDisplay(exercise.reps) || "—"}
                                 {exercise.weight_used && ` @ ${exercise.weight_used}lbs`}
-                                {exercise.rir !== null && ` (RIR: ${exercise.rir})`}
-                                {exercise.rpe !== null && ` (RPE: ${exercise.rpe})`}
+                                {exercise.rir !== null && ` (RIR: ${formatRangeDisplay(exercise.rir) || "—"})`}
+                                {exercise.rpe !== null && ` (RPE: ${formatRangeDisplay(exercise.rpe) || "—"})`}
                               </div>
                               {exercise.notes && (
                                 <div className="text-xs text-gray-500 italic mt-1">{exercise.notes}</div>

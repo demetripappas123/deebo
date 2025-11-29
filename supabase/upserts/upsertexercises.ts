@@ -4,10 +4,10 @@ import { deleteDayExercises } from '@/supabase/deletions/deletedayexercises'
 export type DayExercise = {
   day_id: string
   exercise_def_id: string
-  sets: number
-  reps: number
-  rir: number | null
-  rpe: number | null
+  sets: string | null // numrange in PostgreSQL format
+  reps: string | null // numrange in PostgreSQL format
+  rir: string | null // numrange in PostgreSQL format
+  rpe: string | null // numrange in PostgreSQL format
   notes: string
   weight_used?: number | null
 }
@@ -26,10 +26,10 @@ export async function upsertDayExercises(
     const formattedExercises = exercises.map(ex => ({
       day_id: ex.day_id,
       exercise_def_id: ex.exercise_def_id,
-      sets: ex.sets,
-      reps: ex.reps,
-      rir: ex.rir ?? null,
-      rpe: ex.rpe ?? null,
+      sets: ex.sets || null, // Convert empty string to null
+      reps: ex.reps || null, // Convert empty string to null
+      rir: ex.rir || null, // Convert empty string to null
+      rpe: ex.rpe || null, // Convert empty string to null
       notes: ex.notes || '',
       weight_used: ex.weight_used ?? null,
     }))
@@ -98,10 +98,10 @@ export async function updateDayExercises(
       const formatted = {
         day_id: ex.day_id,
         exercise_def_id: ex.exercise_def_id,
-        sets: ex.sets,
-        reps: ex.reps,
-        rir: ex.rir ?? null,
-        rpe: ex.rpe ?? null,
+        sets: ex.sets || null, // Convert empty string to null
+        reps: ex.reps || null, // Convert empty string to null
+        rir: ex.rir || null, // Convert empty string to null
+        rpe: ex.rpe || null, // Convert empty string to null
         notes: ex.notes || '',
         weight_used: ex.weight_used ?? null,
       }
