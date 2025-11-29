@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash } from "lucide-react";
 import { fetchExercises } from "@/supabase/fetches/fetchexlib";
+import { fetchDayExercises, DayExerciseWithName } from "@/supabase/fetches/fetchdayexercises";
 import {
   Command,
   CommandInput,
@@ -29,28 +30,57 @@ type LocalDayExercise = {
 type AddDayDialogProps = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (payload: { dayName: string; exercises: LocalDayExercise[] }) => void;
+  onSubmit: (payload: { dayName: string; exercises: LocalDayExercise[]; dayId?: string }) => void;
   weekId: string;
   onAdded: () => void | Promise<void>;
+  // Edit mode props
+  dayId?: string; // If provided, dialog is in edit mode
+  initialDayName?: string;
 };
 
-export default function AddDayDialog({ open, onClose, onSubmit }: AddDayDialogProps) {
+export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDayName }: AddDayDialogProps) {
   const [dayName, setDayName] = useState("");
   const [exercises, setExercises] = useState<LocalDayExercise[]>([]);
   const [exerciseLibrary, setExerciseLibrary] = useState<{ id: string; name: string }[]>([]);
   const [openCombobox, setOpenCombobox] = useState<{ [key: number]: boolean }>({});
   const [searchValue, setSearchValue] = useState<{ [key: number]: string }>({});
 
-  // Reset form state when dialog opens
+  // Reset form state when dialog opens, or load existing data if editing
   useEffect(() => {
     if (open) {
-      // Reset all form state when dialog opens fresh
-      setDayName("");
-      setExercises([]);
+      if (dayId && initialDayName) {
+        // Edit mode: load existing data
+        setDayName(initialDayName);
+        
+        // Fetch existing exercises for this day
+        const loadExistingExercises = async () => {
+          try {
+            const existingExercises = await fetchDayExercises(dayId);
+            const mappedExercises: LocalDayExercise[] = existingExercises.map(ex => ({
+              name: ex.exercise_name,
+              sets: ex.sets,
+              reps: ex.reps,
+              rir: ex.rir,
+              rpe: ex.rpe,
+              weight: ex.weight_used,
+              notes: ex.notes || '',
+            }));
+            setExercises(mappedExercises);
+          } catch (err) {
+            console.error("Failed to load existing exercises:", err);
+            setExercises([]);
+          }
+        };
+        loadExistingExercises();
+      } else {
+        // Add mode: reset all form state
+        setDayName("");
+        setExercises([]);
+      }
       setOpenCombobox({});
       setSearchValue({});
     }
-  }, [open]);
+  }, [open, dayId, initialDayName]);
 
   // Fetch exercise library when dialog opens
   useEffect(() => {
@@ -97,6 +127,7 @@ export default function AddDayDialog({ open, onClose, onSubmit }: AddDayDialogPr
     onSubmit({
       dayName,
       exercises,
+      dayId: dayId, // Include dayId if in edit mode
     });
     onClose();
   };
@@ -105,7 +136,9 @@ export default function AddDayDialog({ open, onClose, onSubmit }: AddDayDialogPr
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto bg-[#1f1f1f] border-[#2a2a2a] text-white custom-scrollbar">
         <DialogHeader>
-          <DialogTitle className="text-white">Add Training Day</DialogTitle>
+          <DialogTitle className="text-white">
+            {dayId ? "Edit Training Day" : "Add Training Day"}
+          </DialogTitle>
         </DialogHeader>
 
         {/* Day name */}

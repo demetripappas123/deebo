@@ -39,3 +39,21 @@ export async function addDay(weekId: string, name?: string): Promise<Day | null>
     return null
   }
 }
+
+export async function updateDay(dayId: string, name: string): Promise<Day | null> {
+  try {
+    const { data: updatedDay, error: updateError } = await supabase
+      .from('program_days')
+      .update({ name })
+      .eq('id', dayId)
+      .select('*')
+      .single()
+
+    if (updateError) throw updateError
+
+    return updatedDay as Day
+  } catch (err) {
+    console.error('updateDay error:', err)
+    return null
+  }
+}

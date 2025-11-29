@@ -1,4 +1,5 @@
 import { supabase } from '@/supabase/supabaseClient'
+import { deleteDayExercises } from '@/supabase/deletions/deletedayexercises'
 
 export type DayExercise = {
   day_id: string
@@ -12,8 +13,8 @@ export type DayExercise = {
 }
 
 /**
- * Upserts multiple exercises for a day.
- * Handles new inserts or updates existing exercises based on unique constraint.
+ * Inserts exercises for a day (for new days).
+ * Use updateDayExercises for editing existing days.
  */
 export async function upsertDayExercises(
   exercises: DayExercise[]
@@ -51,6 +52,144 @@ export async function upsertDayExercises(
     return data as DayExercise[]
   } catch (err) {
     console.error('upsertDayExercises error:', err)
+    return null
+  }
+}
+
+/**
+ * Intelligently updates exercises for a day by:
+ * 1. Fetching existing exercises
+ * 2. Updating existing exercises that match by exercise_def_id
+ * 3. Inserting new exercises that don't exist
+ * 4. Deleting exercises that were removed from the list
+ * 
+ * This preserves exercise data and only modifies what changed.
+ */
+export async function updateDayExercises(
+  dayId: string,
+  exercises: DayExercise[]
+): Promise<DayExercise[] | null> {
+  try {
+    // Fetch all existing exercises for this day
+    const { data: existingExercises, error: fetchError } = await supabase
+      .from('program_exercises')
+      .select('*')
+      .eq('day_id', dayId)
+
+    if (fetchError) {
+      console.error('updateDayExercises fetch error:', fetchError)
+      throw fetchError
+    }
+
+    // Create a map of existing exercises by exercise_def_id for quick lookup
+    const existingMap = new Map<string, any>()
+    existingExercises?.forEach(ex => {
+      existingMap.set(ex.exercise_def_id, ex)
+    })
+
+    // Track which exercise_def_ids should exist after update
+    const newExerciseDefIds = new Set(exercises.map(ex => ex.exercise_def_id))
+
+    // Separate exercises into updates and inserts
+    const toUpdate: any[] = []
+    const toInsert: DayExercise[] = []
+
+    exercises.forEach(ex => {
+      const formatted = {
+        day_id: ex.day_id,
+        exercise_def_id: ex.exercise_def_id,
+        sets: ex.sets,
+        reps: ex.reps,
+        rir: ex.rir ?? null,
+        rpe: ex.rpe ?? null,
+        notes: ex.notes || '',
+        weight_used: ex.weight_used ?? null,
+      }
+
+      // Check if this exercise already exists
+      const existing = existingMap.get(ex.exercise_def_id)
+      if (existing) {
+        // Update existing exercise - need to find the row by day_id + exercise_def_id
+        // Since we don't have a unique constraint, we'll update by both fields
+        toUpdate.push(formatted)
+      } else {
+        // Insert new exercise
+        toInsert.push(formatted)
+      }
+    })
+
+    // Delete exercises that exist in DB but not in the new list
+    const toDelete: string[] = []
+    existingExercises?.forEach(ex => {
+      if (!newExerciseDefIds.has(ex.exercise_def_id)) {
+        toDelete.push(ex.exercise_def_id)
+      }
+    })
+
+    // Perform updates, inserts, and deletes in parallel
+    const promises: Promise<any>[] = []
+
+    // Update existing exercises one by one (since no unique constraint)
+    toUpdate.forEach(ex => {
+      promises.push(
+        supabase
+          .from('program_exercises')
+          .update({
+            sets: ex.sets,
+            reps: ex.reps,
+            rir: ex.rir,
+            rpe: ex.rpe,
+            notes: ex.notes,
+            weight_used: ex.weight_used,
+          })
+          .eq('day_id', dayId)
+          .eq('exercise_def_id', ex.exercise_def_id)
+          .select('*')
+      )
+    })
+
+    // Insert new exercises
+    if (toInsert.length > 0) {
+      promises.push(
+        supabase
+          .from('program_exercises')
+          .insert(toInsert)
+          .select('*')
+      )
+    }
+
+    // Delete removed exercises
+    if (toDelete.length > 0) {
+      promises.push(deleteDayExercises(dayId, toDelete).then(success => {
+        if (!success) throw new Error('Failed to delete exercises')
+        return { data: [], error: null }
+      }))
+    }
+
+    const results = await Promise.all(promises)
+
+    // Check for errors
+    for (const result of results) {
+      if (result?.error) {
+        console.error('updateDayExercises operation error:', result.error)
+        throw result.error
+      }
+    }
+
+    // Fetch and return the updated exercises
+    const { data: updatedExercises, error: finalFetchError } = await supabase
+      .from('program_exercises')
+      .select('*')
+      .eq('day_id', dayId)
+
+    if (finalFetchError) {
+      console.error('updateDayExercises final fetch error:', finalFetchError)
+      throw finalFetchError
+    }
+
+    return updatedExercises as DayExercise[]
+  } catch (err) {
+    console.error('updateDayExercises error:', err)
     return null
   }
 }

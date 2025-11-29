@@ -7,8 +7,8 @@ import { upsertWeek } from '@/supabase/upserts/upsertweek'
 import { fetchWeeks, Week } from '@/supabase/fetches/fetchweek'
 import DeleteWeekDialog from '@/modules/programs/deleteweek'
 import { TrashIcon } from '@heroicons/react/24/solid'
-import { addDay } from '@/supabase/upserts/upsertday'
-import { upsertDayExercises, DayExercise } from '@/supabase/upserts/upsertexercises'
+import { addDay, updateDay } from '@/supabase/upserts/upsertday'
+import { upsertDayExercises, updateDayExercises, DayExercise } from '@/supabase/upserts/upsertexercises'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
 import { fetchDayExercises, DayExerciseWithName } from '@/supabase/fetches/fetchdayexercises'
 import AddDayDialog from '@/modules/programs/adddaydialog'
@@ -31,6 +31,8 @@ export default function ProgramPage() {
 
   // For controlling the AddDayDialog per week
   const [activeWeekId, setActiveWeekId] = useState<string | null>(null)
+  // For controlling edit mode - stores the day being edited
+  const [editingDayId, setEditingDayId] = useState<string | null>(null)
 
   const refreshWeeks = async () => {
     const programId = params.id
@@ -101,15 +103,33 @@ export default function ProgramPage() {
     }
   }
 
-  // Submit a new day with exercises
-  const handleAddDaySubmit = async (payload: { dayName: string; exercises: any[] }) => {
-    if (!activeWeekId) return
+  // Submit a new day with exercises OR update an existing day
+  const handleAddDaySubmit = async (payload: { dayName: string; exercises: any[]; dayId?: string }) => {
+    const isEditMode = !!payload.dayId
 
     try {
-      // 1. Create the day and get its ID
-      const newDay = await addDay(activeWeekId, payload.dayName)
-      if (!newDay) {
-        throw new Error('Failed to create day')
+      let dayId: string
+
+      if (isEditMode) {
+        // EDIT MODE: Update existing day
+        if (!payload.dayId) return
+
+        // 1. Update the day name
+        const updatedDay = await updateDay(payload.dayId, payload.dayName)
+        if (!updatedDay) {
+          throw new Error('Failed to update day')
+        }
+        dayId = updatedDay.id
+      } else {
+        // ADD MODE: Create new day
+        if (!activeWeekId) return
+
+        // 1. Create the day and get its ID
+        const newDay = await addDay(activeWeekId, payload.dayName)
+        if (!newDay) {
+          throw new Error('Failed to create day')
+        }
+        dayId = newDay.id
       }
 
       // 2. Fetch exercise library to map exercise names to IDs
@@ -126,7 +146,7 @@ export default function ProgramPage() {
           }
 
           return {
-            day_id: newDay.id,
+            day_id: dayId,
             exercise_def_id: exercise.id,
             sets: ex.sets,
             reps: ex.reps,
@@ -137,17 +157,24 @@ export default function ProgramPage() {
           }
         })
 
-      // 4. Upsert the exercises if there are any
-      if (mappedExercises.length > 0) {
-        await upsertDayExercises(mappedExercises)
+      // 4. Update or insert exercises based on mode
+      if (isEditMode) {
+        // Use smart update that only modifies changed exercises
+        await updateDayExercises(dayId, mappedExercises)
+      } else {
+        // Insert new exercises
+        if (mappedExercises.length > 0) {
+          await upsertDayExercises(mappedExercises)
+        }
       }
 
-      // 5. Refresh weeks to show the new day
+      // 5. Refresh weeks to show the updated/new day
       await refreshWeeks()
     } catch (err) {
-      console.error('Failed to add day:', err)
+      console.error(`Failed to ${isEditMode ? 'update' : 'add'} day:`, err)
     } finally {
       setActiveWeekId(null) // close the dialog
+      setEditingDayId(null) // clear editing state
     }
   }
 
@@ -195,8 +222,15 @@ export default function ProgramPage() {
                   {week.days.map(day => (
                     <div
                       key={day.id}
-                      className="p-3 border border-gray-500 rounded-md bg-[#111111] min-w-[200px]"
+                      className="p-3 border border-gray-500 rounded-md bg-[#111111] min-w-[200px] relative"
                     >
+                      <button
+                        onClick={() => setEditingDayId(day.id)}
+                        className="absolute top-2 right-2 text-gray-400 hover:text-white text-xs cursor-pointer"
+                        title="Edit day"
+                      >
+                        ✎
+                      </button>
                       <div className="font-semibold text-white mb-2">{day.name}</div>
                       {dayExercises[day.id] && dayExercises[day.id].length > 0 ? (
                         <div className="space-y-1">
@@ -232,9 +266,9 @@ export default function ProgramPage() {
                     + Add Day
                   </button>
 
-                  {/* Controlled Dialog */}
+                  {/* Controlled Dialog for Add */}
                   <AddDayDialog
-                    open={activeWeekId === week.id}
+                    open={activeWeekId === week.id && !editingDayId}
                     onClose={() => setActiveWeekId(null)}
                     weekId={week.id}
                     onAdded={refreshWeeks}
@@ -250,6 +284,20 @@ export default function ProgramPage() {
                   <TrashIcon className="w-6 h-6 text-red-500 hover:text-red-600 cursor-pointer" />
                 </DeleteWeekDialog>
               </div>
+
+              {/* Controlled Dialog for Edit - check if any day in this week is being edited */}
+              {week.days.map(day => (
+                <AddDayDialog
+                  key={`edit-${day.id}`}
+                  open={editingDayId === day.id}
+                  onClose={() => setEditingDayId(null)}
+                  weekId={week.id}
+                  onAdded={refreshWeeks}
+                  onSubmit={handleAddDaySubmit}
+                  dayId={day.id}
+                  initialDayName={day.name}
+                />
+              ))}
             </div>
           </div>
         ))}
