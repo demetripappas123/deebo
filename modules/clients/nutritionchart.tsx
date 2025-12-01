@@ -104,9 +104,6 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
       bar: {
         borderRadius: 4,
         columnWidth: '60%',
-        dataLabels: {
-          position: 'top' as const,
-        },
       },
     },
     dataLabels: {
@@ -147,9 +144,7 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
         colors: '#9ca3af',
       },
       markers: {
-        width: 12,
-        height: 12,
-        radius: 2,
+        size: 8,
       },
     },
     tooltip: {
