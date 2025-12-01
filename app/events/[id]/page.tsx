@@ -1,21 +1,24 @@
 import { supabase } from '@/supabase/supabaseClient'
 import { notFound } from 'next/navigation'
 
+export const dynamic = 'force-dynamic'
+
 interface EventPageProps {
   params: Promise<{ id: string }>
 }
 
 export default async function EventPage({ params }: EventPageProps) {
-  const { id } = await params // ✅ await params here
+  try {
+    const { id } = await params // ✅ await params here
 
-  // Fetch event data from Supabase
-  const { data: event, error } = await supabase
-    .from('events')
-    .select('*')
-    .eq('id', id)
-    .single()
+    // Fetch event data from Supabase
+    const { data: event, error } = await supabase
+      .from('events')
+      .select('*')
+      .eq('id', id)
+      .single()
 
-  if (error || !event) return notFound()
+    if (error || !event) return notFound()
 
   return (
     <main className="p-8 text-white bg-[#111111] min-h-screen">
@@ -42,5 +45,9 @@ export default async function EventPage({ params }: EventPageProps) {
         <p className="text-gray-300">Coming soon...</p>
       </div>
     </main>
-  )
+    )
+  } catch (error) {
+    console.error('Error loading event:', error)
+    return notFound()
+  }
 }
