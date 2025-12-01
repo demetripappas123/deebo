@@ -6,6 +6,7 @@ import { supabase } from '@/supabase/supabaseClient'
 import { upsertWeek } from '@/supabase/upserts/upsertweek'
 import { fetchWeeks, Week } from '@/supabase/fetches/fetchweek'
 import DeleteWeekDialog from '@/modules/programs/deleteweek'
+import DeleteDayDialog from '@/modules/programs/deleteday'
 import { TrashIcon } from '@heroicons/react/24/solid'
 import { addDay, updateDay } from '@/supabase/upserts/upsertday'
 import { upsertDayExercises, updateDayExercises, DayExercise } from '@/supabase/upserts/upsertexercises'
@@ -218,20 +219,29 @@ export default function ProgramPage() {
             <div className="flex-1">
               <p className="text-white font-semibold mb-2">Week {week.number}</p>
 
-              <div className="flex gap-2 flex-wrap items-center justify-between">
-                <div className="flex gap-2 flex-wrap items-center">
+              <div className="flex gap-2 flex-wrap items-start justify-between">
+                <div className="flex gap-2 flex-wrap items-start">
                   {week.days.map(day => (
                     <div
                       key={day.id}
                       className="p-3 border border-gray-500 rounded-md bg-[#111111] min-w-[200px] relative"
                     >
-                      <button
-                        onClick={() => setEditingDayId(day.id)}
-                        className="absolute top-2 right-2 text-gray-400 hover:text-white text-xs cursor-pointer"
-                        title="Edit day"
-                      >
-                        ✎
-                      </button>
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <button
+                          onClick={() => setEditingDayId(day.id)}
+                          className="text-gray-400 hover:text-white text-xs cursor-pointer"
+                          title="Edit day"
+                        >
+                          ✎
+                        </button>
+                        <DeleteDayDialog
+                          dayId={day.id}
+                          dayName={day.name}
+                          onDeleted={refreshWeeks}
+                        >
+                          <TrashIcon className="w-4 h-4 text-red-500 hover:text-red-600 cursor-pointer" />
+                        </DeleteDayDialog>
+                      </div>
                       <div className="font-semibold text-white mb-2">{day.name}</div>
                       {dayExercises[day.id] && dayExercises[day.id].length > 0 ? (
                         <div className="space-y-1">
