@@ -3,12 +3,14 @@
 import React, { useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { NutritionEntry } from '@/supabase/fetches/fetchnutrition'
+import { NutritionGoal } from '@/supabase/fetches/fetchnutritiongoals'
 
 // Dynamically import ApexCharts to avoid SSR issues
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false })
 
 type NutritionChartProps = {
   entries: NutritionEntry[]
+  goals?: NutritionGoal[]
 }
 
 // Helper function to parse date string (YYYY-MM-DD) as local date to avoid timezone issues
@@ -17,7 +19,7 @@ const parseLocalDate = (dateStr: string): Date => {
   return new Date(year, month - 1, day) // month is 0-indexed in Date constructor
 }
 
-export default function NutritionChart({ entries }: NutritionChartProps) {
+export default function NutritionChart({ entries, goals = [] }: NutritionChartProps) {
   // Default to current month
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date()
@@ -93,14 +95,40 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
     return map
   }, [monthlyEntries])
 
+  // Find goal for selected month (goal_month format: 'YYYY-MM-01')
+  const currentGoal = useMemo(() => {
+    return goals.find(g => g.goal_month === selectedMonth) || null
+  }, [goals, selectedMonth])
+
+  // Helper function to determine color based on value vs goal
+  const getColorForValue = (value: number | null, goal: number | null): string => {
+    if (value === null || goal === null || goal === 0) {
+      return '#9ca3af' // gray for no data or no goal
+    }
+    
+    const percentage = (value / goal) * 100
+    
+    if (percentage >= 100) {
+      return '#22c55e' // green - at or above goal
+    } else if (percentage >= 80) {
+      return '#eab308' // yellow - close to goal (80-100%)
+    } else {
+      return '#ef4444' // red - far from goal (below 80%)
+    }
+  }
+
   // Prepare chart data - one entry for every day of the month
-  const { dates, fullDates, caloriesData, proteinData, carbsData, fatsData } = useMemo(() => {
+  const { dates, fullDates, caloriesData, proteinData, carbsData, fatsData, caloriesColors, proteinColors, carbsColors, fatsColors } = useMemo(() => {
     const dateLabels: string[] = []
     const fullDateStrings: string[] = []
     const calData: (number | null)[] = []
     const protData: (number | null)[] = []
     const carbData: (number | null)[] = []
     const fatData: (number | null)[] = []
+    const calColors: string[] = []
+    const protColors: string[] = []
+    const carbColors: string[] = []
+    const fatColors: string[] = []
 
     allDaysInMonth.forEach(day => {
       const dateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
@@ -110,10 +138,22 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
       const dayNum = day.getDate()
       dateLabels.push(dayNum % 5 === 0 ? dayNum.toString() : '')
       fullDateStrings.push(day.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))
-      calData.push(entry?.calories ?? null)
-      protData.push(entry?.protein_grams ?? null)
-      carbData.push(entry?.carbs_grams ?? null)
-      fatData.push(entry?.fats_grams ?? null)
+      
+      const calories = entry?.calories ?? null
+      const protein = entry?.protein_grams ?? null
+      const carbs = entry?.carbs_grams ?? null
+      const fats = entry?.fats_grams ?? null
+      
+      calData.push(calories)
+      protData.push(protein)
+      carbData.push(carbs)
+      fatData.push(fats)
+      
+      // Generate colors based on proximity to goals
+      calColors.push(getColorForValue(calories, currentGoal?.calorie_goal ?? null))
+      protColors.push(getColorForValue(protein, currentGoal?.protein_goal ?? null))
+      carbColors.push(getColorForValue(carbs, currentGoal?.carbs_goal ?? null))
+      fatColors.push(getColorForValue(fats, currentGoal?.fats_goal ?? null))
     })
 
     return {
@@ -123,8 +163,12 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
       proteinData: protData,
       carbsData: carbData,
       fatsData: fatData,
+      caloriesColors: calColors,
+      proteinColors: protColors,
+      carbsColors: carbColors,
+      fatsColors: fatColors,
     }
-  }, [allDaysInMonth, entriesByDate])
+  }, [allDaysInMonth, entriesByDate, currentGoal])
 
   // Memoize chart options to prevent recreation
   const caloriesOptions = useMemo(() => ({
@@ -137,6 +181,7 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
       bar: {
         borderRadius: 4,
         columnWidth: '60%',
+        distributed: true, // Enable per-bar coloring
       },
     },
     dataLabels: {
@@ -151,13 +196,19 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
         },
         show: true,
         showDuplicates: false,
+        formatter: (value: string) => {
+          // Hide empty labels to prevent colored squares
+          return value || ''
+        },
       },
       axisBorder: {
-        color: '#2a2a2a',
+        show: false, // Hide axis border to prevent duplicate line
       },
       axisTicks: {
-        color: '#2a2a2a',
-        show: true,
+        show: false, // Hide tick marks (squares)
+      },
+      markers: {
+        show: false, // Disable category markers (colored squares)
       },
     },
     yaxis: {
@@ -171,17 +222,38 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
     grid: {
       borderColor: '#2a2a2a',
       strokeDashArray: 4,
+      xaxis: {
+        lines: {
+          show: false, // Hide vertical grid lines
+        },
+      },
+      yaxis: {
+        lines: {
+          show: true, // Keep horizontal grid lines
+        },
+      },
     },
     fill: {
-      colors: ['#f97316'], // orange-500
+      colors: caloriesColors.length > 0 ? caloriesColors : ['#f97316'], // Use goal-based colors or fallback
+    },
+    markers: {
+      size: 0, // Hide category markers (colored squares) on x-axis
     },
     tooltip: {
       theme: 'dark' as const,
-      y: {
-        formatter: (val: number) => `${val} cal`,
+      custom: ({ series, seriesIndex, dataPointIndex, w }: any) => {
+        const date = fullDates[dataPointIndex] || ''
+        const value = series[seriesIndex][dataPointIndex]
+        if (value === null || value === undefined) return ''
+        return `
+          <div style="padding: 10px; background: #1f1f1f; border: 1px solid #2a2a2a; border-radius: 4px;">
+            <div style="color: #9ca3af; font-size: 12px;">${date}</div>
+            <div style="color: #f97316; font-size: 14px; font-weight: bold; margin-top: 4px;">${value} cal</div>
+          </div>
+        `
       },
     },
-  }), [dates])
+  }), [dates, fullDates, caloriesColors])
 
   const caloriesSeries = useMemo(() => [
     {
@@ -191,69 +263,97 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
   ], [caloriesData])
 
   // Macros chart options (grouped bar)
+  // Note: Per-bar coloring for grouped bars is complex in ApexCharts
+  // Using default series colors for now
   const macrosOptions = useMemo(() => ({
-    chart: {
-      type: 'bar' as const,
-      toolbar: { show: false },
-      background: '#111111',
-    },
-    plotOptions: {
-      bar: {
-        borderRadius: 4,
-        columnWidth: '60%',
+      chart: {
+        type: 'bar' as const,
+        toolbar: { show: false },
+        background: '#111111',
       },
-    },
-    dataLabels: {
-      enabled: false,
-    },
-    xaxis: {
-      categories: dates,
-      labels: {
-        style: {
-          colors: '#9ca3af',
-          fontSize: '11px',
-        },
-        show: true,
-        showDuplicates: false,
-      },
-      axisBorder: {
-        color: '#2a2a2a',
-      },
-      axisTicks: {
-        color: '#2a2a2a',
-        show: true,
-      },
-    },
-    yaxis: {
-      labels: {
-        style: {
-          colors: '#9ca3af',
-          fontSize: '11px',
+      plotOptions: {
+        bar: {
+          borderRadius: 4,
+          columnWidth: '60%',
         },
       },
-    },
-    grid: {
-      borderColor: '#2a2a2a',
-      strokeDashArray: 4,
-    },
-    colors: ['#3b82f6', '#22c55e', '#eab308'], // blue-500, green-500, yellow-500
-    legend: {
-      show: true,
-      position: 'top' as const,
-      labels: {
-        colors: '#9ca3af',
+      dataLabels: {
+        enabled: false,
       },
-      markers: {
-        size: 8,
+      xaxis: {
+        categories: dates,
+        labels: {
+          style: {
+            colors: '#9ca3af',
+            fontSize: '11px',
+          },
+          show: true,
+          showDuplicates: false,
+        },
+        axisBorder: {
+          color: '#2a2a2a',
+        },
+        axisTicks: {
+          color: '#2a2a2a',
+          show: true,
+        },
       },
-    },
+      yaxis: {
+        labels: {
+          style: {
+            colors: '#9ca3af',
+            fontSize: '11px',
+          },
+        },
+      },
+      grid: {
+        borderColor: '#2a2a2a',
+        strokeDashArray: 4,
+      },
+      fill: {
+        type: 'solid',
+        opacity: 1,
+      },
+      colors: ['#3b82f6', '#22c55e', '#eab308'], // fallback colors for legend
+      legend: {
+        show: true,
+        position: 'top' as const,
+        labels: {
+          colors: '#9ca3af',
+        },
+        markers: {
+          size: 8,
+        },
+      },
     tooltip: {
       theme: 'dark' as const,
-      y: {
-        formatter: (val: number) => `${val}g`,
+      custom: ({ series, seriesIndex, dataPointIndex, w }: any) => {
+        const date = fullDates[dataPointIndex] || ''
+        const seriesNames = ['Protein', 'Carbs', 'Fats']
+        const defaultColors = ['#3b82f6', '#22c55e', '#eab308']
+        const colorArrays = [proteinColors, carbsColors, fatsColors]
+        const values = series.map((s: number[], idx: number) => {
+          const val = s[dataPointIndex]
+          if (val === null || val === undefined) return null
+          const barColor = colorArrays[idx]?.[dataPointIndex] || defaultColors[idx]
+          return { name: seriesNames[idx], value: val, color: barColor }
+        }).filter((v: any) => v !== null)
+        
+        if (values.length === 0) return ''
+        
+        const valueItems = values.map((v: any) => 
+          `<div style="color: ${v.color}; font-size: 13px; margin-top: 4px;">${v.name}: <strong>${v.value}g</strong></div>`
+        ).join('')
+        
+        return `
+          <div style="padding: 10px; background: #1f1f1f; border: 1px solid #2a2a2a; border-radius: 4px;">
+            <div style="color: #9ca3af; font-size: 12px;">${date}</div>
+            ${valueItems}
+          </div>
+        `
       },
-    },
-  }), [dates])
+    }
+  }), [dates, fullDates, proteinColors, carbsColors, fatsColors])
 
   const macrosSeries = useMemo(() => [
     {
@@ -269,6 +369,7 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
       data: fatsData,
     },
   ], [proteinData, carbsData, fatsData])
+
 
   return (
     <div className="space-y-6">
@@ -295,6 +396,14 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
       <div>
         <h3 className="text-sm font-semibold text-white mb-2">Calories</h3>
         <div className="bg-[#111111] rounded-md p-4">
+          <style dangerouslySetInnerHTML={{__html: `
+            .apexcharts-legend {
+              display: none !important;
+            }
+            .apexcharts-xaxis .apexcharts-xaxis-texts-g rect {
+              display: none !important;
+            }
+          `}} />
           <Chart
             options={caloriesOptions}
             series={caloriesSeries}

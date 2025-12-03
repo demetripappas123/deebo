@@ -142,7 +142,7 @@ export default function ClientPage() {
             onCancel={() => setIsEditingNutrition(false)}
           />
         ) : (
-          <NutritionChart entries={nutritionEntries} />
+          <NutritionChart entries={nutritionEntries} goals={nutritionGoals} />
         )}
       </div>
     </div>
