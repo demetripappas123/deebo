@@ -71,24 +71,60 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
     setSelectedMonth(`${newYear}-${String(newMonth + 1).padStart(2, '0')}-01`)
   }
 
-  // Prepare chart data
-  const dates = monthlyEntries.length > 0
-    ? monthlyEntries.map(entry =>
-        parseLocalDate(entry.entry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      )
-    : []
-  const caloriesData = monthlyEntries.length > 0
-    ? monthlyEntries.map(entry => entry.calories || 0)
-    : []
-  const proteinData = monthlyEntries.length > 0
-    ? monthlyEntries.map(entry => entry.protein_grams || 0)
-    : []
-  const carbsData = monthlyEntries.length > 0
-    ? monthlyEntries.map(entry => entry.carbs_grams || 0)
-    : []
-  const fatsData = monthlyEntries.length > 0
-    ? monthlyEntries.map(entry => entry.fats_grams || 0)
-    : []
+  // Generate all days in the selected month
+  const allDaysInMonth = useMemo(() => {
+    const days: Date[] = []
+    const year = selectedYear
+    const month = selectedMonthNum - 1 // JavaScript months are 0-indexed
+    const daysInMonth = new Date(year, month + 1, 0).getDate() // Last day of month
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(year, month, day))
+    }
+    return days
+  }, [selectedYear, selectedMonthNum])
+
+  // Create a map of entries by date string (YYYY-MM-DD) for quick lookup
+  const entriesByDate = useMemo(() => {
+    const map = new Map<string, NutritionEntry>()
+    monthlyEntries.forEach(entry => {
+      map.set(entry.entry_date, entry)
+    })
+    return map
+  }, [monthlyEntries])
+
+  // Prepare chart data - one entry for every day of the month
+  const { dates, fullDates, caloriesData, proteinData, carbsData, fatsData } = useMemo(() => {
+    const dateLabels: string[] = []
+    const fullDateStrings: string[] = []
+    const calData: (number | null)[] = []
+    const protData: (number | null)[] = []
+    const carbData: (number | null)[] = []
+    const fatData: (number | null)[] = []
+
+    allDaysInMonth.forEach(day => {
+      const dateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+      const entry = entriesByDate.get(dateStr)
+      
+      // Show day number for every 5th day, empty for others (creates notch effect)
+      const dayNum = day.getDate()
+      dateLabels.push(dayNum % 5 === 0 ? dayNum.toString() : '')
+      fullDateStrings.push(day.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))
+      calData.push(entry?.calories ?? null)
+      protData.push(entry?.protein_grams ?? null)
+      carbData.push(entry?.carbs_grams ?? null)
+      fatData.push(entry?.fats_grams ?? null)
+    })
+
+    return {
+      dates: dateLabels,
+      fullDates: fullDateStrings,
+      caloriesData: calData,
+      proteinData: protData,
+      carbsData: carbData,
+      fatsData: fatData,
+    }
+  }, [allDaysInMonth, entriesByDate])
 
   // Memoize chart options to prevent recreation
   const caloriesOptions = useMemo(() => ({
@@ -107,18 +143,21 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
       enabled: false,
     },
     xaxis: {
-      categories: dates.length > 0 ? dates : ['No data'],
+      categories: dates,
       labels: {
         style: {
           colors: '#9ca3af',
           fontSize: '11px',
         },
+        show: true,
+        showDuplicates: false,
       },
       axisBorder: {
         color: '#2a2a2a',
       },
       axisTicks: {
         color: '#2a2a2a',
+        show: true,
       },
     },
     yaxis: {
@@ -168,18 +207,21 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
       enabled: false,
     },
     xaxis: {
-      categories: dates.length > 0 ? dates : ['No data'],
+      categories: dates,
       labels: {
         style: {
           colors: '#9ca3af',
           fontSize: '11px',
         },
+        show: true,
+        showDuplicates: false,
       },
       axisBorder: {
         color: '#2a2a2a',
       },
       axisTicks: {
         color: '#2a2a2a',
+        show: true,
       },
     },
     yaxis: {
@@ -253,18 +295,12 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
       <div>
         <h3 className="text-sm font-semibold text-white mb-2">Calories</h3>
         <div className="bg-[#111111] rounded-md p-4">
-          {monthlyEntries.length === 0 ? (
-            <div className="h-[300px] flex items-center justify-center">
-              <p className="text-gray-400">No nutrition entries for {formatMonthDisplay(selectedMonth)} yet.</p>
-            </div>
-          ) : (
-            <Chart
-              options={caloriesOptions}
-              series={caloriesSeries}
-              type="bar"
-              height={300}
-            />
-          )}
+          <Chart
+            options={caloriesOptions}
+            series={caloriesSeries}
+            type="bar"
+            height={300}
+          />
         </div>
       </div>
 
@@ -272,18 +308,12 @@ export default function NutritionChart({ entries }: NutritionChartProps) {
       <div>
         <h3 className="text-sm font-semibold text-white mb-2">Macros (g)</h3>
         <div className="bg-[#111111] rounded-md p-4">
-          {monthlyEntries.length === 0 ? (
-            <div className="h-[300px] flex items-center justify-center">
-              <p className="text-gray-400">No nutrition entries for {formatMonthDisplay(selectedMonth)} yet.</p>
-            </div>
-          ) : (
-            <Chart
-              options={macrosOptions}
-              series={macrosSeries}
-              type="bar"
-              height={300}
-            />
-          )}
+          <Chart
+            options={macrosOptions}
+            series={macrosSeries}
+            type="bar"
+            height={300}
+          />
         </div>
       </div>
 
