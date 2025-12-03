@@ -6,8 +6,10 @@ import { supabase } from '@/supabase/supabaseClient'
 import { Client } from '@/supabase/fetches/fetchclients'
 import { fetchClientNutritionEntries, NutritionEntry } from '@/supabase/fetches/fetchnutrition'
 import { updateNutritionEntries } from '@/supabase/upserts/upsertnutrition'
+import { fetchClientNutritionGoals, NutritionGoal } from '@/supabase/fetches/fetchnutritiongoals'
 import EditNutrition from '@/modules/clients/editnutrition'
 import NutritionChart from '@/modules/clients/nutritionchart'
+import CompactNutritionGoals from '@/modules/clients/compactnutritiongoals'
 
 export default function ClientPage() {
   const params = useParams()
@@ -15,6 +17,7 @@ export default function ClientPage() {
 
   const [client, setClient] = useState<Client | null>(null)
   const [nutritionEntries, setNutritionEntries] = useState<NutritionEntry[]>([])
+  const [nutritionGoals, setNutritionGoals] = useState<NutritionGoal[]>([])
   const [loading, setLoading] = useState(true)
   const [isEditingNutrition, setIsEditingNutrition] = useState(false)
 
@@ -40,10 +43,19 @@ export default function ClientPage() {
           // Fetch nutrition entries for this client
           try {
             const nutritionData = await fetchClientNutritionEntries(clientData.id)
-            setNutritionEntries(nutritionData)
+            setNutritionEntries(nutritionData || [])
           } catch (err) {
             console.error('Error loading nutrition entries:', err)
             setNutritionEntries([])
+          }
+
+          // Fetch nutrition goals for this client
+          try {
+            const goalsData = await fetchClientNutritionGoals(clientData.id)
+            setNutritionGoals(goalsData || [])
+          } catch (err) {
+            console.error('Error loading nutrition goals:', err)
+            setNutritionGoals([])
           }
         }
       } catch (err) {
@@ -85,6 +97,29 @@ export default function ClientPage() {
       >
         ← Back
       </button>
+
+      <h1 className="text-3xl font-bold mb-4">{client.name}</h1>
+
+      {/* Nutrition Goals */}
+      <div className="p-3 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold text-white">Nutrition Goals</h2>
+        </div>
+        <CompactNutritionGoals
+          clientId={client.id}
+          initialGoals={nutritionGoals}
+          onUpdate={async () => {
+            if (client) {
+              try {
+                const goalsData = await fetchClientNutritionGoals(client.id)
+                setNutritionGoals(goalsData || [])
+              } catch (err) {
+                console.error('Error refreshing nutrition goals:', err)
+              }
+            }
+          }}
+        />
+      </div>
 
       <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
         <div className="flex justify-between items-center mb-3">
