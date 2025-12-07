@@ -8,33 +8,53 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import type { EventInput, DateSelectArg } from '@fullcalendar/core'
 import { useRouter } from 'next/navigation'
-import { fetchEvents, CalendarEvent } from '@/supabase/fetches/fetchevents'
+import { fetchSessions, Session } from '@/supabase/fetches/fetchsessions'
+import { fetchClients } from '@/supabase/fetches/fetchclients'
+import { fetchProspects } from '@/supabase/fetches/fetchprospects'
 
 export default function Calendar() {
   const [events, setEvents] = useState<EventInput[]>([])
   const router = useRouter()
 
   useEffect(() => {
-    const loadEvents = async () => {
-      const data = await fetchEvents()
+    const loadSessions = async () => {
+      const sessions = await fetchSessions()
+      const clients = await fetchClients()
+      const prospects = await fetchProspects()
+      
+      // Create a map for quick lookup
+      const clientMap = new Map(clients.map(c => [c.id, c.name]))
+      const prospectMap = new Map(prospects.map(p => [p.id, p.name]))
+      
       setEvents(
-        data.map((e: CalendarEvent) => ({
-          id: e.id,
-          title: e.title,
-          start: e.start_time,
-          end: new Date(
-            new Date(e.start_time).getTime() + e.duration_minutes * 60000
-          ).toISOString(),
-        }))
+        sessions
+          .filter((s: Session) => s.start_time) // Only include sessions with start times
+          .map((s: Session) => {
+            // Generate title from type and person name
+            const personName = s.client_id 
+              ? clientMap.get(s.client_id) || 'Unknown Client'
+              : s.prospect_id
+              ? prospectMap.get(s.prospect_id) || 'Unknown Prospect'
+              : 'Unknown'
+            
+            return {
+              id: s.id,
+              title: `${s.type} - ${personName}`,
+              start: s.start_time!,
+              end: s.end_time || new Date(
+                new Date(s.start_time!).getTime() + 60 * 60000 // Default 60 minutes if no end_time
+              ).toISOString(),
+            }
+          })
       )
     }
 
-    loadEvents()
+    loadSessions()
 
-    // Optional: subscribe to real-time updates
+    // Subscribe to real-time updates
     const channel = supabase
-      .channel('events-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => loadEvents())
+      .channel('sessions-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => loadSessions())
       .subscribe()
 
     return () => {

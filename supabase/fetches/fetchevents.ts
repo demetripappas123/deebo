@@ -6,7 +6,7 @@ export interface CalendarEvent {
   title: string
   start_time: string
   duration_minutes: number
-  status: 'past' | 'future' | 'in_progress'
+  status: 'pending' | 'completed' | 'canceled with charge' | 'canceled no charge'
   client_id?: string | null
   prospect_id?: string | null
 }

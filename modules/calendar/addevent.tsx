@@ -11,17 +11,16 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog'
-import { upsertEvent, EventFormData } from '@/supabase/upserts/upsertevent'
+import { upsertSession, SessionFormData } from '@/supabase/upserts/upsertsession'
 import { fetchClients, Client } from '@/supabase/fetches/fetchclients'
 import { fetchProspects, Prospect } from '@/supabase/fetches/fetchprospects'
+import { SessionType } from '@/supabase/fetches/fetchsessions'
 
 export default function AddEventDialog() {
-  const [type, setType] = useState('Client Session')
-  const [title, setTitle] = useState('')
+  const [open, setOpen] = useState(false)
+  const [type, setType] = useState<SessionType>('Client Session')
   const [personId, setPersonId] = useState<string | null>(null)
   const [startTime, setStartTime] = useState<string>(new Date().toISOString().slice(0,16))
-  const [duration, setDuration] = useState<number>(60)
-  const [status, setStatus] = useState<'past' | 'future' | 'in_progress'>('future')
   const [clients, setClients] = useState<Client[]>([])
   const [prospects, setProspects] = useState<Prospect[]>([])
   const [loading, setLoading] = useState(false)
@@ -38,42 +37,46 @@ export default function AddEventDialog() {
   }, [])
 
   // Determine if we should show clients or prospects
-  const isClientType = type === 'Client Session'
+  const isClientType = type === 'Client Session' || type === 'KO' || type === 'SGA' || type === 'KOFU'
+  const isProspectType = type === 'Prospect Session'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!personId) {
+      alert('Please select a client or prospect')
+      return
+    }
+    
     setLoading(true)
 
-    const eventData: Partial<EventFormData> = {
-      title,
+    const sessionData: SessionFormData = {
       type,
+      status: 'pending',
       client_id: isClientType ? personId : null,
       prospect_id: isClientType ? null : personId,
       start_time: new Date(startTime).toISOString(),
-      duration_minutes: duration,
-      status,
+      trainer_id: null,
     }
 
     try {
-      await upsertEvent(eventData)
-      alert('Event created!')
+      await upsertSession(sessionData)
+      alert('Session created!')
       // Reset form
-      setTitle('')
       setType('Client Session')
       setPersonId(null)
       setStartTime(new Date().toISOString().slice(0,16))
-      setDuration(60)
-      setStatus('future')
+      // Close the dialog
+      setOpen(false)
     } catch (err) {
       console.error(err)
-      alert('Error creating event.')
+      alert('Error creating session.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="bg-orange-500 text-white font-semibold hover:bg-orange-600 cursor-pointer">
           Add Event
@@ -108,22 +111,18 @@ export default function AddEventDialog() {
             className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             required
           >
-            <option value="">Select {isClientType ? 'Client' : 'Prospect'}</option>
-            {(isClientType ? clients : prospects).map((p) => (
+            <option value="">Select {isClientType ? 'Client' : isProspectType ? 'Prospect' : 'Client or Prospect'}</option>
+            {isClientType && clients.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+            {isProspectType && prospects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
           </select>
-
-          {/* Title */}
-          <input
-            type="text"
-            placeholder="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-          />
 
           {/* Date / Time */}
           <input
@@ -132,27 +131,6 @@ export default function AddEventDialog() {
             onChange={(e) => setStartTime(e.target.value)}
             className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
           />
-
-          {/* Duration */}
-          <input
-            type="number"
-            placeholder="Duration (minutes)"
-            value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))}
-            className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            min={1}
-          />
-
-          {/* Status */}
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as any)}
-            className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-          >
-            <option value="future">Future</option>
-            <option value="in_progress">In Progress</option>
-            <option value="past">Past</option>
-          </select>
 
           {/* Buttons */}
           <div className="flex justify-end gap-2">

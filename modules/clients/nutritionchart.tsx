@@ -1,12 +1,19 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
-import dynamic from 'next/dynamic'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+  CartesianGrid,
+} from 'recharts'
 import { NutritionEntry } from '@/supabase/fetches/fetchnutrition'
 import { NutritionGoal } from '@/supabase/fetches/fetchnutritiongoals'
-
-// Dynamically import ApexCharts to avoid SSR issues
-const Chart = dynamic(() => import('react-apexcharts'), { ssr: false })
 
 type NutritionChartProps = {
   entries: NutritionEntry[]
@@ -20,6 +27,13 @@ const parseLocalDate = (dateStr: string): Date => {
 }
 
 export default function NutritionChart({ entries, goals = [] }: NutritionChartProps) {
+  // State to track which macros are visible
+  const [visibleMacros, setVisibleMacros] = useState({
+    protein: true,
+    carbs: true,
+    fats: true,
+  })
+
   // Default to current month
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date()
@@ -101,9 +115,14 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
   }, [goals, selectedMonth])
 
   // Helper function to determine color based on value vs goal
-  const getColorForValue = (value: number | null, goal: number | null): string => {
-    if (value === null || goal === null || goal === 0) {
-      return '#9ca3af' // gray for no data or no goal
+  // ALWAYS returns a string - NEVER undefined/null to prevent toLowerCase errors
+  const getColorForValue = (value: number | null | undefined, goal: number | null | undefined): string => {
+    // Defensive: handle ALL edge cases - undefined, null, NaN, 0 (no data), invalid values
+    if (value === null || value === undefined || isNaN(value as number) || value === 0) {
+      return '#9ca3af' // gray for no data (0 means no entry)
+    }
+    if (goal === null || goal === undefined || isNaN(goal) || goal === 0) {
+      return '#9ca3af' // gray for no goal
     }
     
     const percentage = (value / goal) * 100
@@ -117,259 +136,167 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
     }
   }
 
-  // Prepare chart data - one entry for every day of the month
-  const { dates, fullDates, caloriesData, proteinData, carbsData, fatsData, caloriesColors, proteinColors, carbsColors, fatsColors } = useMemo(() => {
-    const dateLabels: string[] = []
-    const fullDateStrings: string[] = []
-    const calData: (number | null)[] = []
-    const protData: (number | null)[] = []
-    const carbData: (number | null)[] = []
-    const fatData: (number | null)[] = []
-    const calColors: string[] = []
-    const protColors: string[] = []
-    const carbColors: string[] = []
-    const fatColors: string[] = []
+  // Defensive helper: ensure value is always a number, use 0 for missing data
+  const safeDataValue = (value: number | null | undefined): number => {
+    if (value === undefined || value === null || isNaN(value)) {
+      return 0 // Use 0 instead of null for missing data
+    }
+    return value
+  }
 
-    allDaysInMonth.forEach(day => {
+  // Defensive helper: ensure color is ALWAYS a valid string, NEVER undefined/null
+  const safeColorString = (color: string | null | undefined): string => {
+    // Handle all edge cases explicitly
+    if (color === undefined || color === null) {
+      return '#9ca3af' // fallback gray
+    }
+    if (typeof color !== 'string') {
+      return '#9ca3af' // fallback gray
+    }
+    if (color === '' || color === 'undefined' || color === 'null') {
+      return '#9ca3af' // fallback gray
+    }
+    return color
+  }
+
+  // Prepare chart data for Recharts - array of objects, one per day
+  const chartData = useMemo(() => {
+    const data: Array<{
+      day: number
+      dayLabel: string
+      fullDate: string
+      calories: number
+      protein: number
+      carbs: number
+      fats: number
+      caloriesColor: string
+      proteinColor: string
+      carbsColor: string
+      fatsColor: string
+    }> = []
+
+    allDaysInMonth.forEach((day) => {
       const dateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
       const entry = entriesByDate.get(dateStr)
       
-      // Show day number for every 5th day, empty for others (creates notch effect)
       const dayNum = day.getDate()
-      dateLabels.push(dayNum % 5 === 0 ? dayNum.toString() : '')
-      fullDateStrings.push(day.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))
+      const dayLabel = dayNum % 5 === 0 ? dayNum.toString() : ''
+      const fullDate = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       
-      const calories = entry?.calories ?? null
-      const protein = entry?.protein_grams ?? null
-      const carbs = entry?.carbs_grams ?? null
-      const fats = entry?.fats_grams ?? null
+      // Extract values - use 0 for days without an entry
+      const calories = typeof entry?.calories === 'number' ? entry.calories : 0
+      const protein = typeof entry?.protein_grams === 'number' ? entry.protein_grams : 0
+      const carbs = typeof entry?.carbs_grams === 'number' ? entry.carbs_grams : 0
+      const fats = typeof entry?.fats_grams === 'number' ? entry.fats_grams : 0
       
-      calData.push(calories)
-      protData.push(protein)
-      carbData.push(carbs)
-      fatData.push(fats)
-      
-      // Generate colors based on proximity to goals
-      calColors.push(getColorForValue(calories, currentGoal?.calorie_goal ?? null))
-      protColors.push(getColorForValue(protein, currentGoal?.protein_goal ?? null))
-      carbColors.push(getColorForValue(carbs, currentGoal?.carbs_goal ?? null))
-      fatColors.push(getColorForValue(fats, currentGoal?.fats_goal ?? null))
+      // Get goal values
+      const calorieGoal = currentGoal?.calorie_goal ?? null
+      const proteinGoal = currentGoal?.protein_goal ?? null
+      const carbsGoal = currentGoal?.carbs_goal ?? null
+      const fatsGoal = currentGoal?.fats_goal ?? null
+
+      // Generate colors
+      const caloriesColor = entry 
+        ? safeColorString(getColorForValue(calories, calorieGoal))
+        : '#9ca3af'
+      const proteinColor = entry
+        ? safeColorString(getColorForValue(protein, proteinGoal))
+        : '#9ca3af'
+      const carbsColor = entry
+        ? safeColorString(getColorForValue(carbs, carbsGoal))
+        : '#9ca3af'
+      const fatsColor = entry
+        ? safeColorString(getColorForValue(fats, fatsGoal))
+        : '#9ca3af'
+
+      data.push({
+        day: dayNum,
+        dayLabel,
+        fullDate,
+        calories,
+        protein,
+        carbs,
+        fats,
+        caloriesColor,
+        proteinColor,
+        carbsColor,
+        fatsColor,
+      })
     })
 
-    return {
-      dates: dateLabels,
-      fullDates: fullDateStrings,
-      caloriesData: calData,
-      proteinData: protData,
-      carbsData: carbData,
-      fatsData: fatData,
-      caloriesColors: calColors,
-      proteinColors: protColors,
-      carbsColors: carbColors,
-      fatsColors: fatColors,
-    }
+    return data
   }, [allDaysInMonth, entriesByDate, currentGoal])
 
-  // Memoize chart options to prevent recreation
-  const caloriesOptions = useMemo(() => ({
-    chart: {
-      type: 'bar' as const,
-      toolbar: { show: false },
-      background: '#111111',
-    },
-    plotOptions: {
-      bar: {
-        borderRadius: 4,
-        columnWidth: '60%',
-        distributed: true, // Enable per-bar coloring
-      },
-    },
-    dataLabels: {
-      enabled: false,
-    },
-    xaxis: {
-      categories: dates,
-      labels: {
-        style: {
-          colors: '#9ca3af',
-          fontSize: '11px',
-        },
-        show: true,
-        showDuplicates: false,
-        formatter: (value: string) => {
-          // Hide empty labels to prevent colored squares
-          return value || ''
-        },
-      },
-      axisBorder: {
-        show: false, // Hide axis border to prevent duplicate line
-      },
-      axisTicks: {
-        show: false, // Hide tick marks (squares)
-      },
-      markers: {
-        show: false, // Disable category markers (colored squares)
-      },
-    },
-    yaxis: {
-      labels: {
-        style: {
-          colors: '#9ca3af',
-          fontSize: '11px',
-        },
-      },
-    },
-    grid: {
-      borderColor: '#2a2a2a',
-      strokeDashArray: 4,
-      xaxis: {
-        lines: {
-          show: false, // Hide vertical grid lines
-        },
-      },
-      yaxis: {
-        lines: {
-          show: true, // Keep horizontal grid lines
-        },
-      },
-    },
-    fill: {
-      colors: caloriesColors.length > 0 ? caloriesColors : ['#f97316'], // Use goal-based colors or fallback
-    },
-    markers: {
-      size: 0, // Hide category markers (colored squares) on x-axis
-    },
-    tooltip: {
-      theme: 'dark' as const,
-      custom: ({ series, seriesIndex, dataPointIndex, w }: any) => {
-        const date = fullDates[dataPointIndex] || ''
-        const value = series[seriesIndex][dataPointIndex]
-        if (value === null || value === undefined) return ''
-        return `
-          <div style="padding: 10px; background: #1f1f1f; border: 1px solid #2a2a2a; border-radius: 4px;">
-            <div style="color: #9ca3af; font-size: 12px;">${date}</div>
-            <div style="color: #f97316; font-size: 14px; font-weight: bold; margin-top: 4px;">${value} cal</div>
+  // Custom tooltip component for Recharts
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || !payload.length) return null
+    
+    const data = payload[0]?.payload
+    if (!data) return null
+    
+    return (
+      <div className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-md p-3">
+        <div className="text-[#9ca3af] text-xs mb-2">{data.fullDate}</div>
+        {payload.map((entry: any, idx: number) => (
+          <div
+            key={idx}
+            style={{ color: entry.color }}
+            className="text-sm mt-1"
+          >
+            {entry.name}: <strong>{entry.value}{entry.dataKey === 'calories' ? ' cal' : 'g'}</strong>
           </div>
-        `
-      },
-    },
-  }), [dates, fullDates, caloriesColors])
+        ))}
+      </div>
+    )
+  }
 
-  const caloriesSeries = useMemo(() => [
-    {
-      name: 'Calories',
-      data: caloriesData,
-    },
-  ], [caloriesData])
+  // Handle legend click to toggle visibility
+  const handleLegendClick = (dataKey: string) => {
+    setVisibleMacros(prev => ({
+      ...prev,
+      [dataKey.toLowerCase()]: !prev[dataKey.toLowerCase() as keyof typeof prev],
+    }))
+  }
 
-  // Macros chart options (grouped bar)
-  // Note: Per-bar coloring for grouped bars is complex in ApexCharts
-  // Using default series colors for now
-  const macrosOptions = useMemo(() => ({
-      chart: {
-        type: 'bar' as const,
-        toolbar: { show: false },
-        background: '#111111',
-      },
-      plotOptions: {
-        bar: {
-          borderRadius: 4,
-          columnWidth: '60%',
-        },
-      },
-      dataLabels: {
-        enabled: false,
-      },
-      xaxis: {
-        categories: dates,
-        labels: {
-          style: {
-            colors: '#9ca3af',
-            fontSize: '11px',
-          },
-          show: true,
-          showDuplicates: false,
-        },
-        axisBorder: {
-          color: '#2a2a2a',
-        },
-        axisTicks: {
-          color: '#2a2a2a',
-          show: true,
-        },
-      },
-      yaxis: {
-        labels: {
-          style: {
-            colors: '#9ca3af',
-            fontSize: '11px',
-          },
-        },
-      },
-      grid: {
-        borderColor: '#2a2a2a',
-        strokeDashArray: 4,
-      },
-      fill: {
-        type: 'solid',
-        opacity: 1,
-      },
-      colors: ['#3b82f6', '#22c55e', '#eab308'], // fallback colors for legend
-      legend: {
-        show: true,
-        position: 'top' as const,
-        labels: {
-          colors: '#9ca3af',
-        },
-        markers: {
-          size: 8,
-        },
-      },
-    tooltip: {
-      theme: 'dark' as const,
-      custom: ({ series, seriesIndex, dataPointIndex, w }: any) => {
-        const date = fullDates[dataPointIndex] || ''
-        const seriesNames = ['Protein', 'Carbs', 'Fats']
-        const defaultColors = ['#3b82f6', '#22c55e', '#eab308']
-        const colorArrays = [proteinColors, carbsColors, fatsColors]
-        const values = series.map((s: number[], idx: number) => {
-          const val = s[dataPointIndex]
-          if (val === null || val === undefined) return null
-          const barColor = colorArrays[idx]?.[dataPointIndex] || defaultColors[idx]
-          return { name: seriesNames[idx], value: val, color: barColor }
-        }).filter((v: any) => v !== null)
-        
-        if (values.length === 0) return ''
-        
-        const valueItems = values.map((v: any) => 
-          `<div style="color: ${v.color}; font-size: 13px; margin-top: 4px;">${v.name}: <strong>${v.value}g</strong></div>`
-        ).join('')
-        
-        return `
-          <div style="padding: 10px; background: #1f1f1f; border: 1px solid #2a2a2a; border-radius: 4px;">
-            <div style="color: #9ca3af; font-size: 12px;">${date}</div>
-            ${valueItems}
-          </div>
-        `
-      },
-    }
-  }), [dates, fullDates, proteinColors, carbsColors, fatsColors])
-
-  const macrosSeries = useMemo(() => [
-    {
-      name: 'Protein',
-      data: proteinData,
-    },
-    {
-      name: 'Carbs',
-      data: carbsData,
-    },
-    {
-      name: 'Fats',
-      data: fatsData,
-    },
-  ], [proteinData, carbsData, fatsData])
-
+  // Custom legend component with click handler
+  const CustomLegend = (props: any) => {
+    const { payload } = props
+    if (!payload || !Array.isArray(payload)) return null
+    
+    return (
+      <div className="flex justify-center gap-6 pt-2.5">
+        {payload.map((entry: any) => {
+          // Map entry value to dataKey (Protein -> protein, Carbs -> carbs, Fats -> fats)
+          const valueToKey: Record<string, string> = {
+            'Protein': 'protein',
+            'Carbs': 'carbs',
+            'Fats': 'fats',
+          }
+          const dataKey = entry.dataKey || valueToKey[entry.value] || entry.value?.toLowerCase()
+          const isVisible = visibleMacros[dataKey as keyof typeof visibleMacros] ?? true
+          
+          return (
+            <div
+              key={entry.value}
+              onClick={() => handleLegendClick(dataKey)}
+              className="flex items-center gap-2 cursor-pointer"
+              style={{ opacity: isVisible ? 1 : 0.5 }}
+            >
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  backgroundColor: isVisible ? entry.color : '#9ca3af',
+                  border: `1px solid ${isVisible ? entry.color : '#9ca3af'}`,
+                }}
+              />
+              <span style={{ color: '#9ca3af' }}>{entry.value}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -397,19 +324,38 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
         <h3 className="text-sm font-semibold text-white mb-2">Calories</h3>
         <div className="bg-[#111111] rounded-md p-4">
           <style dangerouslySetInnerHTML={{__html: `
-            .apexcharts-legend {
-              display: none !important;
+            .recharts-bar-rectangle {
+              cursor: pointer !important;
             }
-            .apexcharts-xaxis .apexcharts-xaxis-texts-g rect {
-              display: none !important;
+            .recharts-bar-rectangle:hover {
+              opacity: 0.8;
+            }
+            .recharts-tooltip-cursor {
+              fill: transparent !important;
             }
           `}} />
-          <Chart
-            options={caloriesOptions}
-            series={caloriesSeries}
-            type="bar"
-            height={300}
-          />
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="4 4" stroke="#2a2a2a" vertical={false} />
+              <XAxis
+                dataKey="dayLabel"
+                tick={{ fill: '#9ca3af', fontSize: 11 }}
+                axisLine={{ stroke: '#2a2a2a' }}
+                tickLine={{ stroke: '#2a2a2a' }}
+              />
+              <YAxis
+                tick={{ fill: '#9ca3af', fontSize: 11 }}
+                axisLine={{ stroke: '#2a2a2a' }}
+                tickLine={{ stroke: '#2a2a2a' }}
+              />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+              <Bar dataKey="calories" radius={[4, 4, 0, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.caloriesColor} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -417,12 +363,65 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
       <div>
         <h3 className="text-sm font-semibold text-white mb-2">Macros (g)</h3>
         <div className="bg-[#111111] rounded-md p-4">
-          <Chart
-            options={macrosOptions}
-            series={macrosSeries}
-            type="bar"
-            height={300}
-          />
+          <style dangerouslySetInnerHTML={{__html: `
+            .recharts-bar-rectangle {
+              cursor: pointer !important;
+            }
+            .recharts-bar-rectangle:hover {
+              opacity: 0.8;
+            }
+            .recharts-tooltip-cursor {
+              fill: transparent !important;
+            }
+          `}} />
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="4 4" stroke="#2a2a2a" vertical={false} />
+              <XAxis
+                dataKey="dayLabel"
+                tick={{ fill: '#9ca3af', fontSize: 11 }}
+                axisLine={{ stroke: '#2a2a2a' }}
+                tickLine={{ stroke: '#2a2a2a' }}
+              />
+              <YAxis
+                tick={{ fill: '#9ca3af', fontSize: 11 }}
+                axisLine={{ stroke: '#2a2a2a' }}
+                tickLine={{ stroke: '#2a2a2a' }}
+              />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+              <Legend content={<CustomLegend />} />
+              <Bar 
+                dataKey="protein" 
+                name="Protein" 
+                radius={[4, 4, 0, 0]} 
+                hide={!visibleMacros.protein}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`protein-${index}`} fill={entry.proteinColor} />
+                ))}
+              </Bar>
+              <Bar 
+                dataKey="carbs" 
+                name="Carbs" 
+                radius={[4, 4, 0, 0]} 
+                hide={!visibleMacros.carbs}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`carbs-${index}`} fill={entry.carbsColor} />
+                ))}
+              </Bar>
+              <Bar 
+                dataKey="fats" 
+                name="Fats" 
+                radius={[4, 4, 0, 0]} 
+                hide={!visibleMacros.fats}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`fats-${index}`} fill={entry.fatsColor} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
