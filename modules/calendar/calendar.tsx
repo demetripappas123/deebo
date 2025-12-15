@@ -9,8 +9,8 @@ import interactionPlugin from '@fullcalendar/interaction'
 import type { EventInput, DateSelectArg } from '@fullcalendar/core'
 import { useRouter } from 'next/navigation'
 import { fetchSessions, Session } from '@/supabase/fetches/fetchsessions'
-import { fetchClients } from '@/supabase/fetches/fetchclients'
-import { fetchProspects } from '@/supabase/fetches/fetchprospects'
+import { fetchClients } from '@/supabase/fetches/fetchpeople'
+import { fetchProspects } from '@/supabase/fetches/fetchpeople'
 
 export default function Calendar() {
   const [events, setEvents] = useState<EventInput[]>([])
@@ -28,14 +28,14 @@ export default function Calendar() {
       
       setEvents(
         sessions
-          .filter((s: Session) => s.start_time) // Only include sessions with start times
+          .filter((s: Session) => s.start_time && s.status !== 'canceled_with_charge' && s.status !== 'canceled_no_charge') // Only include non-cancelled sessions with start times
           .map((s: Session) => {
             // Generate title from type and person name
-            const personName = s.client_id 
-              ? clientMap.get(s.client_id) || 'Unknown Client'
-              : s.prospect_id
-              ? prospectMap.get(s.prospect_id) || 'Unknown Prospect'
-              : 'Unknown'
+            let personName = 'Unknown'
+            if (s.person_id) {
+              // Check if it's a client or prospect by looking up in the appropriate map
+              personName = clientMap.get(s.person_id) || prospectMap.get(s.person_id) || 'Unknown'
+            }
             
             return {
               id: s.id,

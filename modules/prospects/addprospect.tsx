@@ -11,7 +11,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog'
-import { upsertProspect, ProspectFormData } from '@/supabase/upserts/upsertprospect'
+import { upsertProspect, ProspectFormData } from '@/supabase/upserts/upsertperson'
 
 export default function AddProspectDialog() {
   const [name, setName] = useState('')

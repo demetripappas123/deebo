@@ -11,7 +11,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog'
-import { upsertClient, ClientFormData } from '@/supabase/upserts/upsertclient'
+import { upsertClient, ClientFormData } from '@/supabase/upserts/upsertperson'
 
 export default function AddClientDialog() {
   const [name, setName] = useState('')

@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import EditWorkout from './editworkout'
 import { upsertSession, upsertSessionExercise, upsertExerciseSet } from '@/supabase/upserts/upsertsession'
+import { upsertWorkout } from '@/supabase/upserts/upsertworkout'
 import { SessionType } from '@/supabase/fetches/fetchsessions'
 import { supabase } from '@/supabase/supabaseClient'
 
@@ -13,8 +14,7 @@ type AssignWorkoutProps = {
   onOpenChange: (open: boolean) => void
   sessionId: string
   sessionType?: SessionType
-  clientId?: string | null
-  prospectId?: string | null
+  personId?: string | null
 }
 
 type WorkoutOption = 'create' | 'program' | 'existing' | null
@@ -24,8 +24,7 @@ export default function AssignWorkout({
   onOpenChange, 
   sessionId,
   sessionType,
-  clientId,
-  prospectId
+  personId
 }: AssignWorkoutProps) {
   const [selectedOption, setSelectedOption] = useState<WorkoutOption>(null)
   const [showWorkoutEditor, setShowWorkoutEditor] = useState(false)
@@ -50,54 +49,60 @@ export default function AssignWorkout({
     sessionUpdates?: {
       start_time?: string | null
       end_time?: string | null
-      workout_id?: string | null
       day_id?: string | null
     }
   }) => {
     try {
-      if (!clientId && !prospectId) {
-        throw new Error('Client ID or Prospect ID is required to assign a workout')
+      if (!personId) {
+        throw new Error('Person ID is required to assign a workout')
       }
 
-      // Update the session with workout information
-      const session = await upsertSession({
-        id: sessionId,
-        client_id: clientId || null,
-        prospect_id: prospectId || null,
-        trainer_id: null,
-        type: sessionType || 'Client Session',
-        status: 'pending',
-        start_time: data.sessionUpdates?.start_time ?? null,
-        end_time: data.sessionUpdates?.end_time ?? null,
-        workout_id: data.sessionUpdates?.workout_id ?? null,
+      // Step 1: Create the workout first
+      const workout = await upsertWorkout({
+        person_id: personId,
         day_id: data.sessionUpdates?.day_id ?? null,
       })
 
-      // Create session exercises and sets
+      // Step 2: Update the session with workout_id
+      const session = await upsertSession({
+        id: sessionId,
+        person_id: personId,
+        trainer_id: null,
+        type: sessionType || 'Client Session',
+        workout_id: workout.id,
+        start_time: data.sessionUpdates?.start_time ?? null,
+        end_time: data.sessionUpdates?.end_time ?? null,
+        converted: false,
+      })
+
+      // Step 3: Create session exercises and sets immediately (now using workout_id)
+      // Use smart update function to handle exercises
+      const exerciseData = data.exercises.map((ex, index) => ({
+        exercise_id: ex.exercise_id,
+        position: index,
+        notes: ex.notes || null,
+      }))
+
+      // Upsert exercises using smart update
+      const createdExercises = await upsertWorkoutExercises(workout.id, exerciseData)
+
+      // Create sets for each exercise
       for (let i = 0; i < data.exercises.length; i++) {
         const exercise = data.exercises[i]
+        const createdExercise = createdExercises[i]
         
-        // Create session exercise
-        const sessionExercise = await upsertSessionExercise({
-          session_id: session.id,
-          exercise_id: exercise.exercise_id,
-          position: i,
-          notes: exercise.notes || null,
-        })
+        if (createdExercise && createdExercise.id && exercise.sets && exercise.sets.length > 0) {
+          const setData = exercise.sets.map((set) => ({
+            set_number: set.set_number,
+            weight: set.weight ?? null,
+            reps: set.reps ?? null,
+            rir: set.rir ?? null,
+            rpe: set.rpe ?? null,
+            notes: set.notes ?? null,
+          }))
 
-        // Create sets for this exercise
-        if (exercise.sets && exercise.sets.length > 0) {
-          for (const set of exercise.sets) {
-            await upsertExerciseSet({
-              session_exercise_id: sessionExercise.id,
-              set_number: set.set_number,
-              weight: set.weight ?? null,
-              reps: set.reps ?? null,
-              rir: set.rir ?? null,
-              rpe: set.rpe ?? null,
-              notes: set.notes ?? null,
-            })
-          }
+          // Use smart update for sets
+          await upsertExerciseSets(createdExercise.id, setData)
         }
       }
 

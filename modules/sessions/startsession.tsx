@@ -6,7 +6,17 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Plus, X, Trash2, Play, Pause, RotateCcw } from 'lucide-react'
 import { SessionWithExercises } from '@/supabase/fetches/fetchsessions'
-import { upsertExerciseSet, upsertSessionExercise, upsertSession } from '@/supabase/upserts/upsertsession'
+import { upsertExerciseSet, upsertSessionExercise, upsertSession, upsertWorkoutExercises, upsertExerciseSets } from '@/supabase/upserts/upsertsession'
+import { getServerTime } from '@/supabase/utils/getServerTime'
+import { fetchExercises } from '@/supabase/fetches/fetchexlib'
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command'
 
 type TrackedSet = {
   id?: string
@@ -29,22 +39,40 @@ type TrackedExercise = {
 
 type StartSessionProps = {
   session: SessionWithExercises
+  onSessionStart?: () => Promise<void>
   onSessionComplete: () => Promise<void>
   onCancel: () => void
 }
 
 export default function StartSession({
   session,
+  onSessionStart,
   onSessionComplete,
   onCancel,
 }: StartSessionProps) {
   const [exercises, setExercises] = useState<TrackedExercise[]>([])
   const [loading, setLoading] = useState(false)
+  const [exerciseLibrary, setExerciseLibrary] = useState<{ id: string; name: string }[]>([])
+  const [openCombobox, setOpenCombobox] = useState<{ [key: number]: boolean }>({})
+  const [searchValue, setSearchValue] = useState<{ [key: number]: string }>({})
   
   // Timer state
   const [timeElapsed, setTimeElapsed] = useState(0) // in seconds
   const [isRunning, setIsRunning] = useState(false)
   const [startTime, setStartTime] = useState<number | null>(null)
+
+  // Load exercise library
+  useEffect(() => {
+    const loadLibrary = async () => {
+      try {
+        const data = await fetchExercises()
+        setExerciseLibrary(data)
+      } catch (err) {
+        console.error('Failed to fetch exercises:', err)
+      }
+    }
+    loadLibrary()
+  }, [])
 
   // Initialize exercises from session data
   useEffect(() => {
@@ -82,10 +110,14 @@ export default function StartSession({
     }
   }, [isRunning, startTime])
 
-  const handleStartPause = () => {
+  const handleStartPause = async () => {
     if (isRunning) {
       setIsRunning(false)
     } else {
+      // If this is the first time starting, call onSessionStart to set started_at
+      if (!session.started_at && onSessionStart) {
+        await onSessionStart()
+      }
       // Calculate the offset based on current elapsed time
       const offset = timeElapsed * 1000
       setStartTime(Date.now() - offset)
@@ -171,53 +203,121 @@ export default function StartSession({
     })
   }
 
+  const addExercise = () => {
+    setExercises((prev) => [
+      ...prev,
+      {
+        exercise_id: '',
+        exercise_name: '',
+        position: prev.length,
+        notes: null,
+        sets: [],
+      },
+    ])
+  }
+
+  const removeExercise = (index: number) => {
+    setExercises((prev) => 
+      prev.filter((_, i) => i !== index).map((ex, i) => ({
+        ...ex,
+        position: i,
+      }))
+    )
+  }
+
+  const updateExerciseField = <K extends keyof TrackedExercise>(
+    index: number,
+    key: K,
+    value: TrackedExercise[K]
+  ) => {
+    setExercises((prev) => prev.map((ex, i) => (i === index ? { ...ex, [key]: value } : ex)))
+  }
+
   const handleFinishSession = async () => {
     setLoading(true)
     try {
-      // Update each exercise's notes
-      for (const exercise of exercises) {
-        if (exercise.session_exercise_id) {
-          await upsertSessionExercise({
-            id: exercise.session_exercise_id,
-            session_id: session.id,
-            exercise_id: exercise.exercise_id,
-            position: exercise.position,
-            notes: exercise.notes || null,
-          })
+      // Filter out exercises without exercise_id (incomplete exercises)
+      const validExercises = exercises.filter(ex => ex.exercise_id && ex.exercise_id.trim() !== '')
+
+      let workoutId = session.workout_id
+
+      // If there are exercises but no workout, create a workout
+      if (validExercises.length > 0 && !workoutId) {
+        if (!session.person_id) {
+          throw new Error('Session has no person_id - cannot create workout')
         }
+        
+        // Import upsertWorkout
+        const { upsertWorkout } = await import('@/supabase/upserts/upsertworkout')
+        const workout = await upsertWorkout({
+          person_id: session.person_id,
+          day_id: null,
+        })
+        workoutId = workout.id
+
+        // Update session with the new workout_id
+        await upsertSession({
+          id: session.id,
+          type: session.type,
+          person_id: session.person_id,
+          trainer_id: session.trainer_id,
+          start_time: session.start_time,
+          started_at: session.started_at,
+          end_time: null, // Will be set below
+          workout_id: workoutId,
+          converted: session.converted,
+        })
       }
 
-      // Update all sets for each exercise
-      for (const exercise of exercises) {
-        if (exercise.session_exercise_id) {
-          // Use upsertExerciseSet which handles both inserts (when id is undefined) and updates
-          for (const set of exercise.sets) {
-            await upsertExerciseSet({
-              id: set.id, // undefined for new sets, will create new ones
-              session_exercise_id: exercise.session_exercise_id,
-              set_number: set.set_number,
+      // Only update exercises if there are valid exercises and a workout
+      if (validExercises.length > 0 && workoutId) {
+        // Use smart update function to handle exercises intelligently
+        const exerciseData = validExercises.map((ex, index) => ({
+          exercise_id: ex.exercise_id,
+          position: index,
+          notes: ex.notes ?? null,
+        }))
+
+        // Upsert exercises using smart update (compares and updates/inserts/deletes as needed)
+        const updatedExercises = await upsertWorkoutExercises(workoutId, exerciseData)
+
+        // Now update sets for each exercise using smart update
+        for (let i = 0; i < validExercises.length; i++) {
+          const exercise = validExercises[i]
+          const updatedExercise = updatedExercises[i]
+          
+          if (updatedExercise && updatedExercise.id) {
+            const setData = exercise.sets.map((set, idx) => ({
+              set_number: idx + 1, // Re-number sets sequentially
               weight: set.weight ?? null,
               reps: set.reps ?? null,
               rir: set.rir ?? null,
               rpe: set.rpe ?? null,
               notes: set.notes ?? null,
-            })
+            }))
+
+            // Use smart update for sets (compares and updates/inserts/deletes as needed)
+            await upsertExerciseSets(updatedExercise.id, setData)
           }
         }
       }
 
-      // Update session status to completed
+      // Update session end_time when completing
+      // started_at should already be set when session started, end_time set now
+      // Use server time to avoid client clock issues
+      const currentTime = await getServerTime()
+      
       await upsertSession({
         id: session.id,
         type: session.type,
-        status: 'completed',
-        client_id: session.client_id,
-        prospect_id: session.prospect_id,
+        person_id: session.person_id,
         trainer_id: session.trainer_id,
-        start_time: session.start_time,
-        end_time: new Date().toISOString(), // Set end time when completing
-        workout_id: session.workout_id,
-        day_id: session.day_id,
+        start_time: session.start_time, // Keep scheduled time
+        started_at: session.started_at || currentTime, // Use existing started_at or set now if not set
+        end_time: currentTime, // Set end time when completing (from server)
+        workout_id: workoutId, // Use the workoutId (may have been created above)
+        converted: session.converted,
+        status: 'completed', // Set status to completed when finishing session
       })
 
       await onSessionComplete()
@@ -277,27 +377,121 @@ export default function StartSession({
         </div>
 
         <div className="space-y-6">
-          {exercises.map((exercise, exerciseIndex) => (
-            <div
-              key={exerciseIndex}
-              className="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4"
-            >
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {exercise.position + 1}. {exercise.exercise_name}
-                </h3>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-400">
-                    Exercise Notes
-                  </label>
-                  <Textarea
-                    value={exercise.notes || ''}
-                    onChange={(e) => updateExerciseNotes(exerciseIndex, e.target.value)}
-                    placeholder="Add notes for this exercise..."
-                    className="bg-[#1f1f1f] text-white border-[#2a2a2a] min-h-[60px]"
-                  />
+          {exercises.length === 0 ? (
+            <div className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6 text-center">
+              <p className="text-gray-400 mb-4">No exercises in workout. Add exercises below.</p>
+              <Button
+                onClick={addExercise}
+                variant="outline"
+                className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Exercise
+              </Button>
+            </div>
+          ) : (
+            <>
+              {exercises.map((exercise, exerciseIndex) => (
+              <div
+                key={exerciseIndex}
+                className="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4 relative"
+              >
+                <button
+                  onClick={() => removeExercise(exerciseIndex)}
+                  className="absolute right-2 top-2 text-red-500 hover:text-red-600 cursor-pointer p-1"
+                  title="Remove exercise"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+
+                <div className="mb-4">
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium mb-1 text-gray-400">
+                      {exercise.position + 1}. Exercise Name
+                    </label>
+                    <div className="relative">
+                      <Input
+                        value={exercise.exercise_name}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          updateExerciseField(exerciseIndex, 'exercise_name', value)
+                          setSearchValue((prev) => ({ ...prev, [exerciseIndex]: value }))
+                          setOpenCombobox((prev) => ({ ...prev, [exerciseIndex]: value.length > 0 }))
+                        }}
+                        onFocus={() => {
+                          if (exercise.exercise_name.length > 0 || exerciseLibrary.length > 0) {
+                            setOpenCombobox((prev) => ({ ...prev, [exerciseIndex]: true }))
+                          }
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => {
+                            setOpenCombobox((prev) => ({ ...prev, [exerciseIndex]: false }))
+                          }, 200)
+                        }}
+                        placeholder="Type to search exercises..."
+                        className="bg-[#1f1f1f] text-white border-[#2a2a2a] placeholder-gray-400"
+                      />
+                      {openCombobox[exerciseIndex] && (
+                        <div
+                          className="absolute z-50 w-full mt-1 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md shadow-lg"
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                          }}
+                        >
+                          <Command className="bg-[#1f1f1f] text-white">
+                            <CommandInput
+                              value={searchValue[exerciseIndex] || exercise.exercise_name}
+                              onValueChange={(value) => {
+                                setSearchValue((prev) => ({ ...prev, [exerciseIndex]: value }))
+                                updateExerciseField(exerciseIndex, 'exercise_name', value)
+                              }}
+                              placeholder="Search exercises..."
+                              className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400"
+                            />
+                            <CommandList className="max-h-[200px] overflow-y-auto bg-[#1f1f1f] custom-scrollbar">
+                              <CommandEmpty className="text-gray-400 py-4 text-center">
+                                No exercises found.
+                              </CommandEmpty>
+                              <CommandGroup className="bg-[#1f1f1f]">
+                                {exerciseLibrary
+                                  .filter((ex) => {
+                                    const search = (searchValue[exerciseIndex] || exercise.exercise_name || '').toLowerCase()
+                                    return ex.name.toLowerCase().includes(search)
+                                  })
+                                  .map((ex) => (
+                                    <CommandItem
+                                      key={ex.id}
+                                      value={ex.name}
+                                      onSelect={() => {
+                                        updateExerciseField(exerciseIndex, 'exercise_name', ex.name)
+                                        updateExerciseField(exerciseIndex, 'exercise_id', ex.id)
+                                        setSearchValue((prev) => ({ ...prev, [exerciseIndex]: ex.name }))
+                                        setOpenCombobox((prev) => ({ ...prev, [exerciseIndex]: false }))
+                                      }}
+                                      className="text-white hover:bg-[#333333] cursor-pointer data-[selected=true]:bg-[#333333] data-[selected=true]:text-white"
+                                    >
+                                      {ex.name}
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-400">
+                      Exercise Notes
+                    </label>
+                    <Textarea
+                      value={exercise.notes || ''}
+                      onChange={(e) => updateExerciseNotes(exerciseIndex, e.target.value)}
+                      placeholder="Add notes for this exercise..."
+                      className="bg-[#1f1f1f] text-white border-[#2a2a2a] min-h-[60px]"
+                    />
+                  </div>
                 </div>
-              </div>
 
               {/* Sets */}
               <div className="space-y-3">
@@ -312,11 +506,12 @@ export default function StartSession({
                   <div></div>
                 </div>
 
-                {exercise.sets.map((set, setIndex) => (
-                  <div
-                    key={setIndex}
-                    className="grid grid-cols-8 gap-2 items-center"
-                  >
+                {exercise.sets && exercise.sets.length > 0 ? (
+                  exercise.sets.map((set, setIndex) => (
+                    <div
+                      key={setIndex}
+                      className="grid grid-cols-8 gap-2 items-center"
+                    >
                     <div className="text-sm text-gray-300">{set.set_number}</div>
                     <Input
                       type="number"
@@ -394,7 +589,12 @@ export default function StartSession({
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-sm text-gray-400 col-span-8">
+                    No sets added yet. Click "Add Set" below to add sets for this exercise.
+                  </div>
+                )}
 
                 {/* Add Set Button */}
                 <Button
@@ -413,7 +613,16 @@ export default function StartSession({
                 </Button>
               </div>
             </div>
-          ))}
+            ))}
+            <Button
+              onClick={addExercise}
+              variant="outline"
+              className="w-full border-[#2a2a2a] bg-[#333333] text-white hover:bg-[#404040] hover:text-white flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Plus size={18} /> Add Exercise
+            </Button>
+            </>
+          )}
         </div>
 
         <div className="mt-8 pt-6 border-t border-[#2a2a2a] flex justify-end gap-3">

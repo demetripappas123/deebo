@@ -6,9 +6,8 @@ export interface CalendarEvent {
   title: string
   start_time: string
   duration_minutes: number
-  status: 'pending' | 'completed' | 'canceled with charge' | 'canceled no charge'
-  client_id?: string | null
-  prospect_id?: string | null
+  status: 'pending' | 'completed' | 'canceled_with_charge' | 'canceled_no_charge'
+  person_id?: string | null
 }
 
 export async function fetchEvents(): Promise<CalendarEvent[]> {

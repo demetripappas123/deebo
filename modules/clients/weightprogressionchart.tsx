@@ -82,20 +82,30 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
     const cutoffDate = new Date(now)
     cutoffDate.setDate(cutoffDate.getDate() - daysView)
 
-    // Filter sessions within the time period
-    const relevantSessions = sessions.filter((session) => {
-      if (!session.start_time) return false
-      const sessionDate = new Date(session.start_time)
-      return sessionDate >= cutoffDate && sessionDate <= now
-    })
+      // Filter sessions within the time period
+      // Use started_at if available (sessions that have started), otherwise start_time (scheduled)
+      const relevantSessions = sessions.filter((session) => {
+        const sessionDate = session.started_at 
+          ? new Date(session.started_at) 
+          : session.start_time 
+          ? new Date(session.start_time)
+          : null
+        if (!sessionDate) return false
+        return sessionDate >= cutoffDate && sessionDate <= now
+      })
 
-    // For each selected exercise, find max weight per day
-    const exerciseDataByDate = new Map<string, Map<string, number>>()
+      // For each selected exercise, find max weight per day
+      const exerciseDataByDate = new Map<string, Map<string, number>>()
 
-    for (const session of relevantSessions) {
-      if (!session.exercises || !session.start_time) continue
-      const sessionDate = new Date(session.start_time)
-      const dateKey = sessionDate.toISOString().split('T')[0]
+      for (const session of relevantSessions) {
+        if (!session.exercises) continue
+        const sessionDate = session.started_at 
+          ? new Date(session.started_at) 
+          : session.start_time 
+          ? new Date(session.start_time)
+          : null
+        if (!sessionDate) continue
+        const dateKey = sessionDate.toISOString().split('T')[0]
 
       for (const exercise of session.exercises) {
         const exerciseName = exercise.exercise_name || ''

@@ -5,11 +5,10 @@ export type EventFormData = {
   id?: string               // optional, for updating
   title: string
   type: string
-  client_id?: string | null
-  prospect_id?: string | null
+  person_id?: string | null
   start_time: string
   duration_minutes: number
-  status?: 'pending' | 'completed' | 'canceled with charge' | 'canceled no charge'
+  status?: 'pending' | 'completed' | 'canceled_with_charge' | 'canceled_no_charge'
   created_at?: string       // optional, defaults to now() in DB
 }
 
@@ -24,8 +23,7 @@ export async function upsertEvent(event: Partial<EventFormData>) {
     const updateData: any = {}
     if (event.title !== undefined) updateData.title = event.title
     if (event.type !== undefined) updateData.type = event.type
-    if (event.client_id !== undefined) updateData.client_id = event.client_id
-    if (event.prospect_id !== undefined) updateData.prospect_id = event.prospect_id
+    if (event.person_id !== undefined) updateData.person_id = event.person_id
     if (event.start_time !== undefined) updateData.start_time = event.start_time
     if (event.duration_minutes !== undefined) updateData.duration_minutes = event.duration_minutes
     if (event.status !== undefined) updateData.status = event.status
@@ -48,8 +46,7 @@ export async function upsertEvent(event: Partial<EventFormData>) {
     const fullEvent: EventFormData = {
       title: event.title ?? 'Untitled Event',
       type: event.type ?? 'Client Session',
-      client_id: event.client_id ?? null,
-      prospect_id: event.prospect_id ?? null,
+      person_id: event.person_id ?? null,
       start_time: event.start_time ?? new Date().toISOString(),
       duration_minutes: event.duration_minutes ?? 60,
       status: event.status ?? 'pending',

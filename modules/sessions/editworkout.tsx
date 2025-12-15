@@ -130,7 +130,7 @@ export default function EditWorkout({
   const removeExercise = (index: number) => {
     setExercises((prev) => prev.filter((_, i) => i !== index).map((ex, i) => ({
       ...ex,
-      position: i,
+      position: i, // Ensure positions are renumbered starting from 0
     })))
   }
 
@@ -185,8 +185,14 @@ export default function EditWorkout({
   const handleSave = async () => {
     setLoading(true)
     try {
+      // Ensure all exercises have correct positions (0-indexed)
+      const exercisesWithPositions = exercises.map((ex, index) => ({
+        ...ex,
+        position: index, // Force position to match array index
+      }))
+      
       await onSave({
-        exercises,
+        exercises: exercisesWithPositions,
         sessionUpdates: mode === 'in-progress' ? {
           start_time: sessionStartTime || null,
           end_time: sessionEndTime || null,

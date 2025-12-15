@@ -3,20 +3,20 @@ import { Session, SessionType, SessionStatus } from '../fetches/fetchsessions'
 
 export interface SessionFormData {
   id?: string
-  client_id?: string | null
-  prospect_id?: string | null
+  person_id?: string | null
   trainer_id?: string | null
   type: SessionType
-  status?: SessionStatus
   workout_id?: string | null
-  day_id?: string | null
-  start_time?: string | null
-  end_time?: string | null
+  start_time?: string | null // Scheduled time
+  started_at?: string | null // Actual time when session started
+  end_time?: string | null // Actual time when session finished
+  converted?: boolean
+  status?: SessionStatus
 }
 
 export interface SessionExerciseFormData {
   id?: string
-  session_id: string
+  workout_id: string
   exercise_id: string // UUID
   position: number
   notes?: string | null
@@ -39,15 +39,12 @@ export interface ExerciseSetFormData {
 export async function upsertSession(session: SessionFormData): Promise<Session> {
   const sessionData: any = {
     type: session.type,
-    status: session.status || 'pending',
+    converted: session.converted ?? false,
   }
   
   // Only include optional fields if they have values
-  if (session.client_id !== undefined) {
-    sessionData.client_id = session.client_id
-  }
-  if (session.prospect_id !== undefined) {
-    sessionData.prospect_id = session.prospect_id
+  if (session.person_id !== undefined) {
+    sessionData.person_id = session.person_id
   }
   if (session.trainer_id !== undefined && session.trainer_id !== null) {
     sessionData.trainer_id = session.trainer_id
@@ -55,14 +52,17 @@ export async function upsertSession(session: SessionFormData): Promise<Session> 
   if (session.workout_id !== undefined && session.workout_id !== null) {
     sessionData.workout_id = session.workout_id
   }
-  if (session.day_id !== undefined && session.day_id !== null) {
-    sessionData.day_id = session.day_id
-  }
   if (session.start_time !== undefined && session.start_time !== null) {
     sessionData.start_time = session.start_time
   }
+  if (session.started_at !== undefined && session.started_at !== null) {
+    sessionData.started_at = session.started_at
+  }
   if (session.end_time !== undefined && session.end_time !== null) {
     sessionData.end_time = session.end_time
+  }
+  if (session.status !== undefined) {
+    sessionData.status = session.status
   }
 
   if (session.id) {
@@ -98,13 +98,13 @@ export async function upsertSession(session: SessionFormData): Promise<Session> 
 }
 
 /**
- * Create or update a session exercise
+ * Create or update a session exercise (references workout_id)
  */
 export async function upsertSessionExercise(
   exercise: SessionExerciseFormData
 ): Promise<any> {
   const exerciseData: any = {
-    session_id: exercise.session_id,
+    workout_id: exercise.workout_id,
     exercise_id: exercise.exercise_id,
     position: exercise.position,
     notes: exercise.notes ?? null,
@@ -190,16 +190,17 @@ export async function upsertExerciseSet(set: ExerciseSetFormData): Promise<any> 
 
 /**
  * Upsert multiple session exercises (smart update - compares and updates/inserts/deletes as needed)
+ * Uses workout_id to reference workouts
  */
-export async function upsertSessionExercises(
-  sessionId: string,
-  exercises: Omit<SessionExerciseFormData, 'session_id' | 'id'>[]
+export async function upsertWorkoutExercises(
+  workoutId: string,
+  exercises: Omit<SessionExerciseFormData, 'workout_id' | 'id'>[]
 ): Promise<any> {
   // Fetch existing exercises
   const { data: existingExercises, error: fetchError } = await supabase
     .from('session_exercises')
     .select('*')
-    .eq('session_id', sessionId)
+    .eq('workout_id', workoutId)
 
   if (fetchError) {
     console.error('Error fetching existing exercises:', fetchError)
@@ -244,7 +245,7 @@ export async function upsertSessionExercises(
 
     return upsertSessionExercise({
       id: existing?.id,
-      session_id: sessionId,
+      workout_id: workoutId,
       exercise_id: exercise.exercise_id,
       position: index,
       notes: exercise.notes ?? null,
@@ -255,12 +256,34 @@ export async function upsertSessionExercises(
 }
 
 /**
+ * Upsert multiple session exercises (deprecated - use upsertWorkoutExercises)
+ */
+export async function upsertSessionExercises(
+  sessionId: string,
+  exercises: Omit<SessionExerciseFormData, 'workout_id' | 'id'>[]
+): Promise<any> {
+  // This function is deprecated - we need workout_id, not session_id
+  // First get the session to find the workout_id
+  const { data: session, error: sessionError } = await supabase
+    .from('sessions')
+    .select('workout_id')
+    .eq('id', sessionId)
+    .single()
+
+  if (sessionError || !session?.workout_id) {
+    throw new Error('Session not found or has no workout_id')
+  }
+
+  return upsertWorkoutExercises(session.workout_id, exercises)
+}
+
+/**
  * Update a session with partial data (only updates provided fields)
  * Use this for editing individual fields without needing all session data
  */
 export async function updateSession(
   sessionId: string,
-  updates: Partial<Omit<SessionFormData, 'id' | 'client_id' | 'trainer_id' | 'type'>>
+  updates: Partial<Omit<SessionFormData, 'id' | 'person_id' | 'trainer_id' | 'type'>>
 ): Promise<Session> {
   const { data, error } = await supabase
     .from('sessions')
@@ -283,7 +306,7 @@ export async function updateSession(
  */
 export async function updateSessionExercise(
   exerciseId: string,
-  updates: Partial<Omit<SessionExerciseFormData, 'id' | 'session_id'>>
+  updates: Partial<Omit<SessionExerciseFormData, 'id' | 'workout_id'>>
 ): Promise<any> {
   const { data, error } = await supabase
     .from('session_exercises')

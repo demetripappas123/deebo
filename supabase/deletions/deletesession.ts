@@ -33,18 +33,36 @@ export async function deleteSessionExercise(sessionExerciseId: string): Promise<
 }
 
 /**
- * Delete all exercises for a session
+ * Delete all exercises for a workout (used by sessions)
  */
-export async function deleteSessionExercises(sessionId: string): Promise<void> {
+export async function deleteWorkoutExercises(workoutId: string): Promise<void> {
   const { error } = await supabase
     .from('session_exercises')
     .delete()
-    .eq('session_id', sessionId)
+    .eq('workout_id', workoutId)
 
   if (error) {
-    console.error('Error deleting session exercises:', error)
+    console.error('Error deleting workout exercises:', error)
     throw error
   }
+}
+
+/**
+ * Delete all exercises for a session (deprecated - use deleteWorkoutExercises)
+ */
+export async function deleteSessionExercises(sessionId: string): Promise<void> {
+  // First get the session to find the workout_id
+  const { data: session, error: sessionError } = await supabase
+    .from('sessions')
+    .select('workout_id')
+    .eq('id', sessionId)
+    .single()
+
+  if (sessionError || !session?.workout_id) {
+    throw new Error('Session not found or has no workout_id')
+  }
+
+  return deleteWorkoutExercises(session.workout_id)
 }
 
 /**

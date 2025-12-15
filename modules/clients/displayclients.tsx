@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { fetchClients, Client } from '@/supabase/fetches/fetchclients'
+import { fetchClients, Client } from '@/supabase/fetches/fetchpeople'
 
 export default function DisplayClients() {
   const router = useRouter()
@@ -34,7 +34,7 @@ export default function DisplayClients() {
       {clients.map((client) => (
         <div
           key={client.id}
-          onClick={() => router.push(`/clients/${client.id}`)}
+          onClick={() => router.push(`/people/${client.id}`)}
           className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg shadow p-4 overflow-hidden cursor-pointer hover:bg-[#262626] transition-colors"
         >
           <h2 className="text-lg font-semibold text-white truncate">

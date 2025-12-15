@@ -1,20 +1,20 @@
 import { supabase } from '../supabaseClient'
 
 export type SessionType = 'KO' | 'SGA' | 'KOFU' | 'Client Session' | 'Prospect Session'
-export type SessionStatus = 'pending' | 'completed' | 'canceled with charge' | 'canceled no charge'
+export type SessionStatus = 'pending' | 'completed' | 'canceled_with_charge' | 'canceled_no_charge'
 
 export interface Session {
   id: string
-  client_id: string | null
-  prospect_id: string | null
+  person_id: string | null
   trainer_id: string | null
   type: SessionType
-  status: SessionStatus
   workout_id: string | null
-  day_id: string | null
-  start_time: string | null
-  end_time: string | null
+  start_time: string | null // Scheduled time
+  started_at: string | null // Actual time when session started
+  end_time: string | null // Actual time when session finished
   created_at: string
+  converted: boolean
+  status: SessionStatus
 }
 
 export interface SessionWithExercises extends Session {
@@ -23,7 +23,7 @@ export interface SessionWithExercises extends Session {
 
 export interface SessionExercise {
   id: string
-  session_id: string
+  workout_id: string
   exercise_id: string // UUID from exercise_library
   position: number
   notes: string | null
@@ -91,21 +91,41 @@ export async function fetchSessionById(sessionId: string): Promise<Session | nul
 }
 
 /**
- * Fetch sessions for a specific client
+ * Fetch sessions for a specific person (client or prospect)
  */
-export async function fetchClientSessions(clientId: string): Promise<Session[]> {
+export async function fetchClientSessions(personId: string): Promise<Session[]> {
   const { data, error } = await supabase
     .from('sessions')
     .select('*')
-    .eq('client_id', clientId)
+    .eq('person_id', personId)
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching client sessions:', error)
+    console.error('Error fetching person sessions:', error)
     throw error
   }
 
   return data ?? []
+}
+
+/**
+ * Fetch session by workout_id (to find which session a workout belongs to)
+ */
+export async function fetchSessionByWorkoutId(workoutId: string): Promise<Session | null> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('workout_id', workoutId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    console.error('Error fetching session by workout_id:', error)
+    throw error
+  }
+
+  return data
 }
 
 
@@ -116,8 +136,13 @@ export async function fetchSessionWithExercises(sessionId: string): Promise<Sess
   // Fetch session
   const session = await fetchSessionById(sessionId)
   if (!session) return null
+  
+  // If no workout_id, return session with empty exercises
+  if (!session.workout_id) {
+    return { ...session, exercises: [] }
+  }
 
-  // Fetch exercises for this session
+  // Fetch exercises for this workout (session_exercises references workout_id)
   const { data: exercises, error: exercisesError } = await supabase
     .from('session_exercises')
     .select(`
@@ -127,17 +152,23 @@ export async function fetchSessionWithExercises(sessionId: string): Promise<Sess
         name
       )
     `)
-    .eq('session_id', sessionId)
+    .eq('workout_id', session.workout_id)
     .order('position', { ascending: true })
 
+  // If error, log it but don't throw - return session with empty exercises so the session can still be displayed
   if (exercisesError) {
     console.error('Error fetching session exercises:', exercisesError)
-    throw exercisesError
+    return { ...session, exercises: [] }
+  }
+
+  // If no exercises found, return empty array
+  if (!exercises) {
+    return { ...session, exercises: [] }
   }
 
   // Fetch sets for each exercise
   const exercisesWithSets: SessionExerciseWithSets[] = await Promise.all(
-    (exercises || []).map(async (exercise) => {
+    exercises.map(async (exercise) => {
       const { data: sets, error: setsError } = await supabase
         .from('exercise_sets')
         .select('*')
@@ -146,7 +177,12 @@ export async function fetchSessionWithExercises(sessionId: string): Promise<Sess
 
       if (setsError) {
         console.error('Error fetching exercise sets:', setsError)
-        throw setsError
+        // Don't throw - return exercise with empty sets
+        return {
+          ...exercise,
+          exercise_name: (exercise.exercise_library as any)?.name,
+          sets: [],
+        }
       }
 
       return {
@@ -164,9 +200,9 @@ export async function fetchSessionWithExercises(sessionId: string): Promise<Sess
 }
 
 /**
- * Fetch exercises for a session
+ * Fetch exercises for a workout (used by sessions)
  */
-export async function fetchSessionExercises(sessionId: string): Promise<SessionExerciseWithName[]> {
+export async function fetchWorkoutExercises(workoutId: string): Promise<SessionExerciseWithName[]> {
   const { data, error } = await supabase
     .from('session_exercises')
     .select(`
@@ -176,18 +212,30 @@ export async function fetchSessionExercises(sessionId: string): Promise<SessionE
         name
       )
     `)
-    .eq('session_id', sessionId)
+    .eq('workout_id', workoutId)
     .order('position', { ascending: true })
 
   if (error) {
-    console.error('Error fetching session exercises:', error)
-    throw error
+    console.error('Error fetching workout exercises:', error)
+    // Return empty array instead of throwing
+    return []
   }
 
   return (data || []).map((exercise) => ({
     ...exercise,
     exercise_name: (exercise.exercise_library as any)?.name,
   }))
+}
+
+/**
+ * Fetch exercises for a session (deprecated - use fetchWorkoutExercises with session.workout_id)
+ */
+export async function fetchSessionExercises(sessionId: string): Promise<SessionExerciseWithName[]> {
+  // First get the session to find the workout_id
+  const session = await fetchSessionById(sessionId)
+  if (!session || !session.workout_id) return []
+  
+  return fetchWorkoutExercises(session.workout_id)
 }
 
 /**

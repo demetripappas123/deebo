@@ -1,9 +1,11 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { fetchProspects, Prospect } from '@/supabase/fetches/fetchprospects'
+import { useRouter } from 'next/navigation'
+import { fetchProspects, Prospect } from '@/supabase/fetches/fetchpeople'
 
 export default function DisplayProspects() {
+  const router = useRouter()
   const [prospects, setProspects] = useState<Prospect[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -32,7 +34,8 @@ export default function DisplayProspects() {
       {prospects.map((prospect) => (
         <div
           key={prospect.id}
-          className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg shadow p-4 overflow-hidden"
+          onClick={() => router.push(`/people/${prospect.id}`)}
+          className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg shadow p-4 overflow-hidden cursor-pointer hover:bg-[#262626] transition-colors"
         >
           <h2 className="text-lg font-semibold text-white truncate">
             {prospect.name}
