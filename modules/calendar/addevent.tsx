@@ -17,6 +17,8 @@ import { fetchClients, Client } from '@/supabase/fetches/fetchpeople'
 import { fetchProspects, Prospect } from '@/supabase/fetches/fetchpeople'
 import { SessionType } from '@/supabase/fetches/fetchsessions'
 import { upsertProspect, ProspectFormData } from '@/supabase/upserts/upsertperson'
+import { fetchPackages } from '@/supabase/fetches/fetchpackages'
+import { fetchPersonPackagesWithRemaining, PersonPackageWithRemaining } from '@/supabase/fetches/fetchpersonpackageswithremaining'
 
 export default function AddEventDialog() {
   const router = useRouter()
@@ -32,22 +34,55 @@ export default function AddEventDialog() {
   const [prospectNumber, setProspectNumber] = useState('')
   const [prospectNotes, setProspectNotes] = useState('')
   const [addingProspect, setAddingProspect] = useState(false)
+  const [selectedPersonPackageId, setSelectedPersonPackageId] = useState<string | null>(null)
+  const [availablePersonPackages, setAvailablePersonPackages] = useState<PersonPackageWithRemaining[]>([])
+  const [packages, setPackages] = useState<any[]>([])
 
-  // Load clients and prospects
+  // Determine if we should show clients or prospects
+  // Only "Client Session" uses clients, all other types use prospects
+  const isClientType = type === 'Client Session'
+  const isProspectType = type !== 'Client Session'
+
+  // Load clients, prospects, and packages
   useEffect(() => {
     const loadPeople = async () => {
       const clientsData = await fetchClients()
       setClients(clientsData)
       const prospectsData = await fetchProspects()
       setProspects(prospectsData)
+      const packagesData = await fetchPackages()
+      setPackages(packagesData)
     }
     loadPeople()
   }, [])
 
-  // Determine if we should show clients or prospects
-  // Only "Client Session" uses clients, all other types use prospects
-  const isClientType = type === 'Client Session'
-  const isProspectType = type !== 'Client Session'
+  // Load available person packages when client is selected and type is Client Session
+  // This fetches person_packages for the selected client (personId) that are:
+  // - Active status
+  // - Have remaining sessions (used_units < total_units)
+  useEffect(() => {
+    const loadPersonPackages = async () => {
+      const isClientSession = type === 'Client Session'
+      if (isClientSession && personId) {
+        try {
+          // Fetch person_packages for the selected client ID, filtered to active with remaining sessions
+          const personPackages = await fetchPersonPackagesWithRemaining(personId)
+          setAvailablePersonPackages(personPackages)
+          // Reset selection if current selection is no longer available
+          if (selectedPersonPackageId && !personPackages.find(pp => pp.id === selectedPersonPackageId)) {
+            setSelectedPersonPackageId(null)
+          }
+        } catch (err) {
+          console.error('Error loading person packages:', err)
+          setAvailablePersonPackages([])
+        }
+      } else {
+        setAvailablePersonPackages([])
+        setSelectedPersonPackageId(null)
+      }
+    }
+    loadPersonPackages()
+  }, [personId, type, selectedPersonPackageId])
 
   const handleAddProspect = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -100,6 +135,7 @@ export default function AddEventDialog() {
         person_id: personId,
         start_time: new Date(startTime).toISOString(), // Scheduled time
         trainer_id: null,
+        person_package_id: selectedPersonPackageId,
         converted: false,
       })
       
@@ -109,6 +145,7 @@ export default function AddEventDialog() {
       // Reset form
       setType('Client Session')
       setPersonId(null)
+      setSelectedPersonPackageId(null)
       setStartTime(new Date().toISOString().slice(0,16))
       // Close the dialog
       setOpen(false)
@@ -142,6 +179,7 @@ export default function AddEventDialog() {
             onChange={(e) => {
               setType(e.target.value as SessionType)
               setPersonId(null) // Reset person selection when type changes
+              setSelectedPersonPackageId(null) // Reset package selection
             }}
             className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
           >
@@ -157,7 +195,10 @@ export default function AddEventDialog() {
             <div className="flex items-center gap-2">
               <select
                 value={personId ?? ''}
-                onChange={(e) => setPersonId(e.target.value)}
+                onChange={(e) => {
+                  setPersonId(e.target.value)
+                  setSelectedPersonPackageId(null) // Reset package when person changes
+                }}
                 className="flex-1 px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 required
               >
@@ -184,6 +225,35 @@ export default function AddEventDialog() {
               )}
             </div>
           </div>
+
+          {/* Person Package Selection - only for Client Sessions */}
+          {isClientType && personId && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">
+                Package (Optional)
+              </label>
+              <select
+                value={selectedPersonPackageId ?? ''}
+                onChange={(e) => setSelectedPersonPackageId(e.target.value || null)}
+                className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              >
+                <option value="">No package (manual session)</option>
+                {availablePersonPackages.map((pp) => {
+                  const pkg = packages.find(p => p.id === pp.package_id)
+                  return (
+                    <option key={pp.id} value={pp.id}>
+                      {pkg?.name || 'Unknown Package'} - {pp.remaining_units} out of {pp.total_units} sessions remaining
+                    </option>
+                  )
+                })}
+              </select>
+              {availablePersonPackages.length === 0 && personId && (
+                <p className="text-xs text-gray-400">
+                  No active packages with remaining sessions found for this client.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Date / Time */}
           <input

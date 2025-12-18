@@ -5,6 +5,8 @@ export interface Workout {
   created_at: string
   day_id: string | null
   person_id: string
+  completed: boolean
+  workout_date: string | null
 }
 
 /**
@@ -47,12 +49,14 @@ export async function fetchWorkoutById(workoutId: string): Promise<Workout | nul
 
 /**
  * Fetch workouts for a specific person
+ * Only returns completed workouts (for workout history)
  */
 export async function fetchPersonWorkouts(personId: string): Promise<Workout[]> {
   const { data, error } = await supabase
     .from('workouts')
     .select('*')
     .eq('person_id', personId)
+    .eq('completed', true) // Only fetch completed workouts for history
     .order('created_at', { ascending: false })
 
   if (error) {

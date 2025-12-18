@@ -52,24 +52,19 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
     cutoffDate.setDate(cutoffDate.getDate() - daysView)
 
     // Filter sessions within the time period and calculate volume
-    // Use started_at if available (sessions that have started), otherwise start_time (scheduled)
+    // Use started_at which should contain workout_date from the workout
     const sessionsWithVolume = sessions
       .filter((session) => {
-        const sessionDate = session.started_at 
-          ? new Date(session.started_at) 
-          : session.start_time 
-          ? new Date(session.start_time)
-          : null
-        if (!sessionDate) return false
+        // started_at should contain workout_date from the workout mapping
+        if (!session.started_at) return false
+        const sessionDate = new Date(session.started_at)
+        if (isNaN(sessionDate.getTime())) return false
         return sessionDate >= cutoffDate && sessionDate <= now
       })
       .map((session) => {
         const volume = calculateSessionVolume(session)
-        const date = session.started_at 
-          ? new Date(session.started_at) 
-          : session.start_time 
-          ? new Date(session.start_time)
-          : new Date()
+        // started_at contains workout_date from the workout
+        const date = new Date(session.started_at!)
         return {
           date: date.toISOString().split('T')[0], // YYYY-MM-DD
           volume,

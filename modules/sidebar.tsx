@@ -49,6 +49,12 @@ export default function Sidebar() {
           >
             <span className="font-medium">Programs</span>
           </Link>
+          <Link
+            href="/payments"
+            className="flex items-center px-4 py-3 text-gray-300 rounded-lg hover:bg-[#262626] hover:text-white transition-colors"
+          >
+            <span className="font-medium">Payments</span>
+          </Link>
          
         </nav>
       </div>

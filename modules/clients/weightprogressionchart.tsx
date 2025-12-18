@@ -83,14 +83,12 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
     cutoffDate.setDate(cutoffDate.getDate() - daysView)
 
       // Filter sessions within the time period
-      // Use started_at if available (sessions that have started), otherwise start_time (scheduled)
+      // Use started_at which should contain workout_date from the workout
       const relevantSessions = sessions.filter((session) => {
-        const sessionDate = session.started_at 
-          ? new Date(session.started_at) 
-          : session.start_time 
-          ? new Date(session.start_time)
-          : null
-        if (!sessionDate) return false
+        // started_at should contain workout_date from the workout mapping
+        if (!session.started_at) return false
+        const sessionDate = new Date(session.started_at)
+        if (isNaN(sessionDate.getTime())) return false
         return sessionDate >= cutoffDate && sessionDate <= now
       })
 
@@ -99,12 +97,10 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
 
       for (const session of relevantSessions) {
         if (!session.exercises) continue
-        const sessionDate = session.started_at 
-          ? new Date(session.started_at) 
-          : session.start_time 
-          ? new Date(session.start_time)
-          : null
-        if (!sessionDate) continue
+        // started_at contains workout_date from the workout
+        if (!session.started_at) continue
+        const sessionDate = new Date(session.started_at)
+        if (isNaN(sessionDate.getTime())) continue
         const dateKey = sessionDate.toISOString().split('T')[0]
 
       for (const exercise of session.exercises) {

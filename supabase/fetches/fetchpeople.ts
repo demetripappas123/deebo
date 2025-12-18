@@ -5,6 +5,7 @@ export interface Person {
   name: string
   number: string
   program_id?: string | null
+  package_id?: string | null
   created_at: string
   converted_at: string | null
   notes?: string | null

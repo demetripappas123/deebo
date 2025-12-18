@@ -6,6 +6,7 @@ export interface PersonFormData {
   number?: string
   notes?: string
   program_id?: string | null
+  package_id?: string | null
   created_at?: string
   converted_at?: string | null
 }
@@ -28,6 +29,7 @@ export async function upsertPerson(person: Partial<PersonFormData>, options?: {
     number: person.number ?? '',
     notes: person.notes ?? '',
     program_id: person.program_id ?? null,
+    package_id: person.package_id ?? null,
     created_at: person.created_at ?? new Date().toISOString(),
     ...(person.id ? { id: person.id } : {}), // include id only if it exists
   }

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -13,7 +14,13 @@ import {
 } from '@/components/ui/dialog'
 import { upsertClient, ClientFormData } from '@/supabase/upserts/upsertperson'
 
-export default function AddClientDialog() {
+interface AddClientDialogProps {
+  onClientAdded?: () => void
+}
+
+export default function AddClientDialog({ onClientAdded }: AddClientDialogProps) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [number, setNumber] = useState('')
   const [notes, setNotes] = useState('')
@@ -30,7 +37,9 @@ export default function AddClientDialog() {
       setName('')
       setNumber('')
       setNotes('')
-      alert('Client saved!')
+      setOpen(false) // Close dialog on success
+      router.refresh() // Refresh the page to show the new client
+      onClientAdded?.() // Trigger parent refresh callback
     } catch (err) {
       console.error(err)
       alert('Error saving client.')
@@ -39,8 +48,19 @@ export default function AddClientDialog() {
     }
   }
 
+  // Reset form when dialog closes
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen)
+    if (!isOpen) {
+      // Reset form when closing
+      setName('')
+      setNumber('')
+      setNotes('')
+    }
+  }
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="bg-orange-500 text-white font-semibold hover:bg-orange-600 cursor-pointer">
           Add Client

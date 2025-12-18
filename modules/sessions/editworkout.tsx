@@ -103,12 +103,25 @@ export default function EditWorkout({
   // Fetch exercise library when dialog opens
   useEffect(() => {
     const loadLibrary = async () => {
-      if (!open) return
+      if (!open) {
+        setExerciseLibrary([]) // Clear when dialog closes
+        return
+      }
+      console.log('Loading exercise library...')
       try {
         const data = await fetchExercises()
-        setExerciseLibrary(data)
+        console.log('Exercise library fetched:', data)
+        console.log('Exercise library count:', data.length)
+        if (data && data.length > 0) {
+          setExerciseLibrary(data)
+          console.log('Exercise library set successfully')
+        } else {
+          console.warn('Exercise library is empty')
+          setExerciseLibrary([])
+        }
       } catch (err) {
         console.error('Failed to fetch exercises:', err)
+        setExerciseLibrary([]) // Reset to empty array on error
       }
     }
     loadLibrary()
@@ -267,10 +280,14 @@ export default function EditWorkout({
                         const value = e.target.value
                         updateExercise(index, 'exercise_name', value)
                         setSearchValue((prev) => ({ ...prev, [index]: value }))
-                        setOpenCombobox((prev) => ({ ...prev, [index]: value.length > 0 }))
+                        // Open dropdown when typing if exercise library is loaded
+                        if (exerciseLibrary.length > 0) {
+                          setOpenCombobox((prev) => ({ ...prev, [index]: true }))
+                        }
                       }}
                       onFocus={() => {
-                        if (ex.exercise_name.length > 0 || exerciseLibrary.length > 0) {
+                        // Always open dropdown when focused if exercise library is loaded
+                        if (exerciseLibrary.length > 0) {
                           setOpenCombobox((prev) => ({ ...prev, [index]: true }))
                         }
                       }}
@@ -304,12 +321,13 @@ export default function EditWorkout({
                               No exercises found.
                             </CommandEmpty>
                             <CommandGroup className="bg-[#1f1f1f]">
-                              {exerciseLibrary
-                                .filter((exercise) => {
-                                  const search = (searchValue[index] || ex.exercise_name || '').toLowerCase()
-                                  return exercise.name.toLowerCase().includes(search)
-                                })
-                                .map((exercise) => (
+                              {exerciseLibrary.length > 0 ? (
+                                exerciseLibrary
+                                  .filter((exercise) => {
+                                    const search = (searchValue[index] || ex.exercise_name || '').toLowerCase()
+                                    return search === '' || exercise.name.toLowerCase().includes(search)
+                                  })
+                                  .map((exercise) => (
                                   <CommandItem
                                     key={exercise.id}
                                     value={exercise.name}
@@ -323,7 +341,12 @@ export default function EditWorkout({
                                   >
                                     {exercise.name}
                                   </CommandItem>
-                                ))}
+                                  ))
+                              ) : (
+                                <div className="text-gray-400 py-2 px-4 text-sm">
+                                  Loading exercises...
+                                </div>
+                              )}
                             </CommandGroup>
                           </CommandList>
                         </Command>

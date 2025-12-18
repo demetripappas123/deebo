@@ -5,6 +5,8 @@ export interface WorkoutFormData {
   id?: string
   day_id?: string | null
   person_id: string
+  completed?: boolean
+  workout_date?: string | null
 }
 
 /**
@@ -18,6 +20,19 @@ export async function upsertWorkout(workout: WorkoutFormData): Promise<Workout> 
   // Only include optional fields if they have values
   if (workout.day_id !== undefined && workout.day_id !== null) {
     workoutData.day_id = workout.day_id
+  }
+  
+  // Handle completed field (defaults to false if not provided)
+  if (workout.completed !== undefined) {
+    workoutData.completed = workout.completed
+  } else if (!workout.id) {
+    // New workouts default to not completed
+    workoutData.completed = false
+  }
+  
+  // Handle workout_date field
+  if (workout.workout_date !== undefined) {
+    workoutData.workout_date = workout.workout_date
   }
 
   if (workout.id) {

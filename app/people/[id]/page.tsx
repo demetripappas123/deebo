@@ -7,9 +7,8 @@ import { Person } from '@/supabase/fetches/fetchpeople'
 import { fetchClientNutritionEntries, NutritionEntry } from '@/supabase/fetches/fetchnutrition'
 import { updateNutritionEntries } from '@/supabase/upserts/upsertnutrition'
 import { fetchClientNutritionGoals, NutritionGoal } from '@/supabase/fetches/fetchnutritiongoals'
-import { fetchClientSessions, fetchSessionWithExercises, SessionWithExercises, Session, fetchSessionByWorkoutId } from '@/supabase/fetches/fetchsessions'
-import { fetchPersonWorkouts, Workout } from '@/supabase/fetches/fetchworkouts'
-import { fetchWorkoutExercises } from '@/supabase/fetches/fetchsessions'
+import { fetchClientSessions, fetchSessionWithExercises, SessionWithExercises, Session } from '@/supabase/fetches/fetchsessions'
+import { fetchPersonWorkoutsWithData, WorkoutWithData } from '@/supabase/fetches/fetchpersonworkoutswithdata'
 import { upsertWorkout } from '@/supabase/upserts/upsertworkout'
 import { Plus } from 'lucide-react'
 import EditNutrition from '@/modules/clients/editnutrition'
@@ -21,9 +20,19 @@ import WeightProgressionChart from '@/modules/clients/weightprogressionchart'
 import EditWorkout from '@/modules/sessions/editworkout'
 import { upsertSession, upsertSessionExercise, upsertExerciseSet } from '@/supabase/upserts/upsertsession'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
-import { Utensils, Dumbbell, Pencil, Activity, UserCheck } from 'lucide-react'
+import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { fetchExercises } from '@/supabase/fetches/fetchexlib'
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@/components/ui/command'
 
 
 export default function PersonPage() {
@@ -34,12 +43,32 @@ export default function PersonPage() {
   const [nutritionEntries, setNutritionEntries] = useState<NutritionEntry[]>([])
   const [nutritionGoals, setNutritionGoals] = useState<NutritionGoal[]>([])
   const [sessions, setSessions] = useState<Session[]>([]) // Changed to Session[] - no exercises needed
-  const [workouts, setWorkouts] = useState<Array<Workout & { session?: Session | null; exercises?: any[] }>>([])
+  const [workouts, setWorkouts] = useState<WorkoutWithData[]>([])
   const [loading, setLoading] = useState(true)
   const [isEditingNutrition, setIsEditingNutrition] = useState(false)
   const [activeTab, setActiveTab] = useState<'nutrition' | 'sessions' | 'workouts' | 'progress'>('progress')
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null)
+  const [showAddWorkoutForm, setShowAddWorkoutForm] = useState(false)
+  const [exerciseLibrary, setExerciseLibrary] = useState<{ id: string; name: string }[]>([])
+  
+  // Add workout form state
+  const [newWorkoutDate, setNewWorkoutDate] = useState<string>(new Date().toISOString().split('T')[0])
+  const [newWorkoutExercises, setNewWorkoutExercises] = useState<Array<{
+    exercise_id: string
+    exercise_name: string
+    notes: string
+    sets: Array<{
+      set_number: number
+      weight: number | null
+      reps: number | null
+      rir: number | null
+      rpe: number | null
+      notes: string | null
+    }>
+  }>>([])
+  const [openCombobox, setOpenCombobox] = useState<{ [key: number]: boolean }>({})
+  const [searchValue, setSearchValue] = useState<{ [key: number]: string }>({})
 
   const isClient = person?.converted_at !== null && person?.converted_at !== undefined
   const isProspect = !isClient
@@ -97,38 +126,11 @@ export default function PersonPage() {
             setSessions([])
           }
 
-          // Fetch workouts for this person
+          // Fetch workouts for this person with all related data (efficient batch queries)
+          // Fetch for both clients and prospects - workouts are independent of conversion status
           try {
-            const personWorkouts = await fetchPersonWorkouts(personData.id)
-            // For each workout, fetch associated session and exercises with sets
-            const workoutsWithData = await Promise.all(
-              personWorkouts.map(async (workout) => {
-                const session = await fetchSessionByWorkoutId(workout.id)
-                const exercises = await fetchWorkoutExercises(workout.id)
-                // Fetch sets for each exercise
-                const exercisesWithSets = await Promise.all(
-                  exercises.map(async (exercise) => {
-                    const { data: sets, error: setsError } = await supabase
-                      .from('exercise_sets')
-                      .select('*')
-                      .eq('session_exercise_id', exercise.id)
-                      .order('set_number', { ascending: true })
-                    
-                    if (setsError) {
-                      console.error('Error fetching exercise sets:', setsError)
-                      return { ...exercise, sets: [] }
-                    }
-                    
-                    return { ...exercise, sets: sets || [] }
-                  })
-                )
-                return {
-                  ...workout,
-                  session: session || null,
-                  exercises: exercisesWithSets || [],
-                }
-              })
-            )
+            const workoutsWithData = await fetchPersonWorkoutsWithData(personData.id)
+            console.log('Fetched workouts for person:', personData.id, workoutsWithData.length, workoutsWithData)
             setWorkouts(workoutsWithData)
           } catch (err) {
             console.error('Error loading workouts:', err)
@@ -389,18 +391,366 @@ export default function PersonPage() {
               Workout History {workouts.length > 0 && `(${workouts.length} workouts)`}
             </h2>
             <Button
-              onClick={() => setEditingWorkoutId('new')}
+              onClick={() => setShowAddWorkoutForm(!showAddWorkoutForm)}
               className="bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Workout
+              {showAddWorkoutForm ? (
+                <>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Workout
+                </>
+              )}
             </Button>
           </div>
-          {workouts.length === 0 ? (
+
+          {/* Inline Add Workout Form */}
+          {showAddWorkoutForm && (
+            <div className="mb-6 bg-[#111111] border border-[#2a2a2a] rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-white mb-4">Add New Workout</h3>
+              
+              {/* Workout Date */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1 text-gray-400">
+                  Workout Date *
+                </label>
+                <Input
+                  type="date"
+                  value={newWorkoutDate}
+                  onChange={(e) => setNewWorkoutDate(e.target.value)}
+                  className="bg-[#1f1f1f] text-white border-[#2a2a2a] max-w-xs"
+                  required
+                />
+              </div>
+
+              {/* Exercises */}
+              <div className="space-y-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-400">Exercises</label>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setNewWorkoutExercises([...newWorkoutExercises, {
+                        exercise_id: '',
+                        exercise_name: '',
+                        notes: '',
+                        sets: [],
+                      }])
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 h-auto"
+                  >
+                    <PlusIcon className="h-3 w-3 mr-1" />
+                    Add Exercise
+                  </Button>
+                </div>
+
+                {newWorkoutExercises.map((exercise, exIdx) => (
+                  <div key={exIdx} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-md p-4">
+                    <div className="flex items-start gap-2 mb-3">
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium mb-1 text-gray-400">
+                          Exercise {exIdx + 1}
+                        </label>
+                        <div className="relative">
+                          <Command className="bg-[#1f1f1f] border border-[#2a2a2a]">
+                            <CommandInput
+                              placeholder="Search exercises..."
+                              value={searchValue[exIdx] || ''}
+                              onValueChange={(value) => {
+                                setSearchValue({ ...searchValue, [exIdx]: value })
+                                setOpenCombobox({ ...openCombobox, [exIdx]: true })
+                              }}
+                              className="text-white"
+                            />
+                            {openCombobox[exIdx] && (
+                              <CommandList>
+                                <CommandEmpty>No exercises found.</CommandEmpty>
+                                <CommandGroup>
+                                  {exerciseLibrary
+                                    .filter(ex => 
+                                      !searchValue[exIdx] || 
+                                      ex.name.toLowerCase().includes(searchValue[exIdx].toLowerCase())
+                                    )
+                                    .map((ex) => (
+                                      <CommandItem
+                                        key={ex.id}
+                                        value={ex.name}
+                                        onSelect={() => {
+                                          const updated = [...newWorkoutExercises]
+                                          updated[exIdx] = {
+                                            ...updated[exIdx],
+                                            exercise_id: ex.id,
+                                            exercise_name: ex.name,
+                                          }
+                                          setNewWorkoutExercises(updated)
+                                          setOpenCombobox({ ...openCombobox, [exIdx]: false })
+                                          setSearchValue({ ...searchValue, [exIdx]: ex.name })
+                                        }}
+                                        className="text-white hover:bg-[#2a2a2a] cursor-pointer"
+                                      >
+                                        {ex.name}
+                                      </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                              </CommandList>
+                            )}
+                          </Command>
+                          {exercise.exercise_name && (
+                            <p className="text-xs text-gray-300 mt-1">{exercise.exercise_name}</p>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = newWorkoutExercises.filter((_, i) => i !== exIdx)
+                          setNewWorkoutExercises(updated)
+                        }}
+                        className="p-1 text-red-500 hover:text-red-600"
+                      >
+                        <Trash className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    {/* Exercise Notes */}
+                    <div className="mb-3">
+                      <Input
+                        type="text"
+                        placeholder="Exercise notes (optional)"
+                        value={exercise.notes}
+                        onChange={(e) => {
+                          const updated = [...newWorkoutExercises]
+                          updated[exIdx].notes = e.target.value
+                          setNewWorkoutExercises(updated)
+                        }}
+                        className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-sm"
+                      />
+                    </div>
+
+                    {/* Sets */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-medium text-gray-400">Sets</label>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            const updated = [...newWorkoutExercises]
+                            updated[exIdx].sets = [...updated[exIdx].sets, {
+                              set_number: updated[exIdx].sets.length + 1,
+                              weight: null,
+                              reps: null,
+                              rir: null,
+                              rpe: null,
+                              notes: null,
+                            }]
+                            setNewWorkoutExercises(updated)
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 h-auto"
+                        >
+                          <PlusIcon className="h-3 w-3 mr-1" />
+                          Add Set
+                        </Button>
+                      </div>
+
+                      {exercise.sets.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-7 gap-2 text-xs font-semibold text-gray-400 pb-1 border-b border-[#2a2a2a]">
+                            <div>Set</div>
+                            <div>Weight</div>
+                            <div>Reps</div>
+                            <div>RIR</div>
+                            <div>RPE</div>
+                            <div>Notes</div>
+                            <div></div>
+                          </div>
+                          {exercise.sets.map((set, setIdx) => (
+                            <div key={setIdx} className="grid grid-cols-7 gap-2 items-center">
+                              <div className="text-xs text-gray-300">{set.set_number}</div>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="Weight"
+                                value={set.weight ?? ''}
+                                onChange={(e) => {
+                                  const updated = [...newWorkoutExercises]
+                                  updated[exIdx].sets[setIdx].weight = e.target.value ? parseFloat(e.target.value) : null
+                                  setNewWorkoutExercises(updated)
+                                }}
+                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8"
+                              />
+                              <Input
+                                type="number"
+                                placeholder="Reps"
+                                value={set.reps ?? ''}
+                                onChange={(e) => {
+                                  const updated = [...newWorkoutExercises]
+                                  updated[exIdx].sets[setIdx].reps = e.target.value ? parseInt(e.target.value) : null
+                                  setNewWorkoutExercises(updated)
+                                }}
+                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8"
+                              />
+                              <Input
+                                type="number"
+                                placeholder="RIR"
+                                value={set.rir ?? ''}
+                                onChange={(e) => {
+                                  const updated = [...newWorkoutExercises]
+                                  updated[exIdx].sets[setIdx].rir = e.target.value ? parseInt(e.target.value) : null
+                                  setNewWorkoutExercises(updated)
+                                }}
+                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8"
+                              />
+                              <Input
+                                type="number"
+                                placeholder="RPE"
+                                value={set.rpe ?? ''}
+                                onChange={(e) => {
+                                  const updated = [...newWorkoutExercises]
+                                  updated[exIdx].sets[setIdx].rpe = e.target.value ? parseInt(e.target.value) : null
+                                  setNewWorkoutExercises(updated)
+                                }}
+                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8"
+                              />
+                              <Input
+                                type="text"
+                                placeholder="Notes"
+                                value={set.notes ?? ''}
+                                onChange={(e) => {
+                                  const updated = [...newWorkoutExercises]
+                                  updated[exIdx].sets[setIdx].notes = e.target.value || null
+                                  setNewWorkoutExercises(updated)
+                                }}
+                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = [...newWorkoutExercises]
+                                  updated[exIdx].sets = updated[exIdx].sets.filter((_, i) => i !== setIdx)
+                                  // Renumber sets
+                                  updated[exIdx].sets = updated[exIdx].sets.map((s, i) => ({
+                                    ...s,
+                                    set_number: i + 1,
+                                  }))
+                                  setNewWorkoutExercises(updated)
+                                }}
+                                className="p-1 text-red-500 hover:text-red-600"
+                              >
+                                <Trash className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={async () => {
+                    if (!person) return
+                    if (!newWorkoutDate) {
+                      alert('Please select a workout date')
+                      return
+                    }
+                    if (newWorkoutExercises.length === 0) {
+                      alert('Please add at least one exercise')
+                      return
+                    }
+                    if (newWorkoutExercises.some(ex => !ex.exercise_id)) {
+                      alert('Please select an exercise for all exercise entries')
+                      return
+                    }
+
+                    try {
+                      // Create workout with workout_date
+                      const newWorkout = await upsertWorkout({
+                        person_id: person.id,
+                        day_id: null,
+                        completed: true, // Mark as completed since it's a historical workout
+                        workout_date: new Date(newWorkoutDate).toISOString(),
+                      })
+
+                      // Create exercises and sets
+                      for (let i = 0; i < newWorkoutExercises.length; i++) {
+                        const exercise = newWorkoutExercises[i]
+                        const sessionExercise = await upsertSessionExercise({
+                          workout_id: newWorkout.id,
+                          exercise_id: exercise.exercise_id,
+                          position: i,
+                          notes: exercise.notes || null,
+                        })
+
+                        if (exercise.sets && exercise.sets.length > 0) {
+                          for (const set of exercise.sets) {
+                            await upsertExerciseSet({
+                              session_exercise_id: sessionExercise.id,
+                              set_number: set.set_number,
+                              weight: set.weight ?? null,
+                              reps: set.reps ?? null,
+                              rir: set.rir ?? null,
+                              rpe: set.rpe ?? null,
+                              notes: set.notes ?? null,
+                            })
+                          }
+                        }
+                      }
+
+                      // Reload workouts
+                      const workoutsWithData = await fetchPersonWorkoutsWithData(person.id)
+                      setWorkouts(workoutsWithData)
+                      
+                      // Reset form
+                      setNewWorkoutDate(new Date().toISOString().split('T')[0])
+                      setNewWorkoutExercises([])
+                      setShowAddWorkoutForm(false)
+                      setOpenCombobox({})
+                      setSearchValue({})
+                    } catch (error) {
+                      console.error('Error creating workout:', error)
+                      alert('Error creating workout. Please try again.')
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Save Workout
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowAddWorkoutForm(false)
+                    setNewWorkoutDate(new Date().toISOString().split('T')[0])
+                    setNewWorkoutExercises([])
+                    setOpenCombobox({})
+                    setSearchValue({})
+                  }}
+                  variant="outline"
+                  className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a]"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {workouts.length === 0 && !showAddWorkoutForm ? (
             <p className="text-gray-400">No workouts found.</p>
           ) : (
             <div className="space-y-4">
-              {workouts.map((workout) => (
+              {workouts
+                .sort((a, b) => {
+                  // Sort by workout_date (most recent first), fallback to created_at
+                  const dateA = a.workout_date ? new Date(a.workout_date).getTime() : new Date(a.created_at).getTime()
+                  const dateB = b.workout_date ? new Date(b.workout_date).getTime() : new Date(b.created_at).getTime()
+                  return dateB - dateA
+                })
+                .map((workout) => (
                 <div
                   key={workout.id}
                   className="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4"
@@ -419,7 +769,9 @@ export default function PersonPage() {
                       </div>
                       <p className="text-sm text-gray-400">
                         <span className="font-semibold text-white">Date:</span>{' '}
-                        {new Date(workout.created_at).toLocaleString()}
+                        {workout.workout_date 
+                          ? new Date(workout.workout_date).toLocaleString()
+                          : new Date(workout.created_at).toLocaleString()}
                       </p>
                       {workout.session && (
                         <p className="text-sm text-gray-400 mt-1">
@@ -495,33 +847,77 @@ export default function PersonPage() {
       {activeTab === 'progress' && (
         <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md space-y-6">
           <h2 className="text-lg font-semibold text-white mb-4">Progress</h2>
-          {/* Convert workouts to SessionWithExercises format for charts - only workouts with sessions */}
+          {/* Convert workouts to SessionWithExercises format for charts - use workout data primarily */}
           <WorkoutVolumeChart sessions={workouts
-            .filter(w => w.session)
+            .filter(w => {
+              // Only include workouts with exercises and a workout_date
+              return w.exercises && w.exercises.length > 0 && w.workout_date
+            })
             .map(w => ({
-              ...w.session!,
-              exercises: w.exercises,
+              // Use session data if available, otherwise create a session-like object from workout
+              id: w.session?.id || w.id,
+              person_id: w.person_id,
+              trainer_id: w.session?.trainer_id || null,
+              type: w.session?.type || 'Client Session' as any,
+              workout_id: w.id,
+              person_package_id: w.session?.person_package_id || null,
+              start_time: w.session?.start_time || null,
+              // Use workout_date as the primary date (never fall back to created_at)
+              started_at: w.workout_date!,
+              end_time: w.session?.end_time || null,
+              created_at: w.created_at,
+              converted: w.session?.converted || false,
+              status: w.session?.status || 'completed' as any,
+              exercises: w.exercises || [],
             })) as SessionWithExercises[]} />
           <RPERIRChart sessions={workouts
-            .filter(w => w.session)
+            .filter(w => {
+              // Only include workouts with exercises and a workout_date
+              return w.exercises && w.exercises.length > 0 && w.workout_date
+            })
             .map(w => ({
-              ...w.session!,
-              exercises: w.exercises,
+              id: w.session?.id || w.id,
+              person_id: w.person_id,
+              trainer_id: w.session?.trainer_id || null,
+              type: w.session?.type || 'Client Session' as any,
+              workout_id: w.id,
+              person_package_id: w.session?.person_package_id || null,
+              start_time: w.session?.start_time || null,
+              // Use workout_date as the primary date (never fall back to created_at)
+              started_at: w.workout_date!,
+              end_time: w.session?.end_time || null,
+              created_at: w.created_at,
+              converted: w.session?.converted || false,
+              status: w.session?.status || 'completed' as any,
+              exercises: w.exercises || [],
             })) as SessionWithExercises[]} />
           <WeightProgressionChart sessions={workouts
-            .filter(w => w.session)
+            .filter(w => {
+              // Only include workouts with exercises and a workout_date
+              return w.exercises && w.exercises.length > 0 && w.workout_date
+            })
             .map(w => ({
-              ...w.session!,
-              exercises: w.exercises,
+              id: w.session?.id || w.id,
+              person_id: w.person_id,
+              trainer_id: w.session?.trainer_id || null,
+              type: w.session?.type || 'Client Session' as any,
+              workout_id: w.id,
+              person_package_id: w.session?.person_package_id || null,
+              start_time: w.session?.start_time || null,
+              // Use workout_date as the primary date (never fall back to created_at)
+              started_at: w.workout_date!,
+              end_time: w.session?.end_time || null,
+              created_at: w.created_at,
+              converted: w.session?.converted || false,
+              status: w.session?.status || 'completed' as any,
+              exercises: w.exercises || [],
             })) as SessionWithExercises[]} />
         </div>
       )}
 
-      {/* Edit Workout Dialog */}
-      {editingWorkoutId && (() => {
-        const workoutToEdit = editingWorkoutId === 'new' 
-          ? null 
-          : workouts.find(w => w.id === editingWorkoutId)
+      {/* Edit Workout Dialog - Only for editing existing workouts */}
+      {editingWorkoutId && editingWorkoutId !== 'new' && (() => {
+        const workoutToEdit = workouts.find(w => w.id === editingWorkoutId)
         
         return (
           <EditWorkout
@@ -531,29 +927,18 @@ export default function PersonPage() {
             }}
             sessionId={workoutToEdit?.session?.id}
             initialExercises={workoutToEdit?.exercises}
-            mode={editingWorkoutId === 'new' ? 'create' : 'edit'}
+            mode="edit"
             onSave={async (data) => {
               try {
                 if (!person) {
                   throw new Error('Person not found')
                 }
 
-                let workoutId: string
-
-                if (editingWorkoutId === 'new') {
-                  // Create new workout
-                  const newWorkout = await upsertWorkout({
-                    person_id: person.id,
-                    day_id: data.sessionUpdates?.day_id ?? null,
-                  })
-                  workoutId = newWorkout.id
-                } else {
-                  // Update existing workout
-                  if (!workoutToEdit) {
-                    throw new Error('Workout not found')
-                  }
-                  workoutId = workoutToEdit.id
+                // Update existing workout
+                if (!workoutToEdit) {
+                  throw new Error('Workout not found')
                 }
+                const workoutId = workoutToEdit.id
 
                 // Delete all existing exercises for this workout (cascade will handle sets)
                 const { error: deleteError } = await supabase
@@ -590,35 +975,8 @@ export default function PersonPage() {
                   }
                 }
 
-                // Reload workouts
-                const personWorkouts = await fetchPersonWorkouts(person.id)
-                const workoutsWithData = await Promise.all(
-                  personWorkouts.map(async (workout) => {
-                    const session = await fetchSessionByWorkoutId(workout.id)
-                    const exercises = await fetchWorkoutExercises(workout.id)
-                    const exercisesWithSets = await Promise.all(
-                      exercises.map(async (exercise) => {
-                        const { data: sets, error: setsError } = await supabase
-                          .from('exercise_sets')
-                          .select('*')
-                          .eq('session_exercise_id', exercise.id)
-                          .order('set_number', { ascending: true })
-                        
-                        if (setsError) {
-                          console.error('Error fetching exercise sets:', setsError)
-                          return { ...exercise, sets: [] }
-                        }
-                        
-                        return { ...exercise, sets: sets || [] }
-                      })
-                    )
-                    return {
-                      ...workout,
-                      session: session || null,
-                      exercises: exercisesWithSets || [],
-                    }
-                  })
-                )
+                // Reload workouts efficiently
+                const workoutsWithData = await fetchPersonWorkoutsWithData(person.id)
                 setWorkouts(workoutsWithData)
                 setEditingWorkoutId(null)
               } catch (error) {

@@ -9,6 +9,7 @@ export interface Session {
   trainer_id: string | null
   type: SessionType
   workout_id: string | null
+  person_package_id: string | null
   start_time: string | null // Scheduled time
   started_at: string | null // Actual time when session started
   end_time: string | null // Actual time when session finished

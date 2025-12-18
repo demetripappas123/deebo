@@ -1,28 +1,38 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useImperativeHandle, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { fetchClients, Client } from '@/supabase/fetches/fetchpeople'
 
-export default function DisplayClients() {
+export interface DisplayClientsRef {
+  refresh: () => Promise<void>
+}
+
+const DisplayClients = forwardRef<DisplayClientsRef>((props, ref) => {
   const router = useRouter()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const loadClients = async () => {
-      try {
-        const data = await fetchClients()
-        setClients(data)
-      } catch (err) {
-        console.error(err)
-        setError('Failed to load clients.')
-      } finally {
-        setLoading(false)
-      }
+  const loadClients = async () => {
+    setLoading(true)
+    try {
+      const data = await fetchClients()
+      setClients(data)
+      setError(null)
+    } catch (err) {
+      console.error(err)
+      setError('Failed to load clients.')
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useImperativeHandle(ref, () => ({
+    refresh: loadClients,
+  }))
+
+  useEffect(() => {
     loadClients()
   }, [])
 
@@ -51,4 +61,8 @@ export default function DisplayClients() {
       ))}
     </div>
   )
-}
+})
+
+DisplayClients.displayName = 'DisplayClients'
+
+export default DisplayClients

@@ -30,7 +30,7 @@ export default function Calendar() {
         sessions
           .filter((s: Session) => s.start_time && s.status !== 'canceled_with_charge' && s.status !== 'canceled_no_charge') // Only include non-cancelled sessions with start times
           .map((s: Session) => {
-            // Generate title from type and person name
+            // Generate title from person name (primary), with session type as secondary info
             let personName = 'Unknown'
             if (s.person_id) {
               // Check if it's a client or prospect by looking up in the appropriate map
@@ -39,11 +39,14 @@ export default function Calendar() {
             
             return {
               id: s.id,
-              title: `${s.type} - ${personName}`,
+              title: personName, // Display person's name as the header
               start: s.start_time!,
               end: s.end_time || new Date(
                 new Date(s.start_time!).getTime() + 60 * 60000 // Default 60 minutes if no end_time
               ).toISOString(),
+              extendedProps: {
+                sessionType: s.type, // Store session type in extended props if needed for tooltips/details
+              },
             }
           })
       )

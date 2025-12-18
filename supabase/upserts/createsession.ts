@@ -6,6 +6,7 @@ export interface CreateSessionData {
   trainer_id?: string | null
   type: SessionType
   start_time?: string | null
+  person_package_id?: string | null
   converted?: boolean
   status?: SessionStatus
 }
@@ -25,6 +26,9 @@ export async function createSession(sessionData: CreateSessionData): Promise<Ses
   // Only include optional fields if they have values
   if (sessionData.trainer_id !== undefined && sessionData.trainer_id !== null) {
     data.trainer_id = sessionData.trainer_id
+  }
+  if (sessionData.person_package_id !== undefined && sessionData.person_package_id !== null) {
+    data.person_package_id = sessionData.person_package_id
   }
   if (sessionData.start_time !== undefined && sessionData.start_time !== null) {
     data.start_time = sessionData.start_time

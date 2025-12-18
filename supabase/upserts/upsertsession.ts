@@ -7,6 +7,7 @@ export interface SessionFormData {
   trainer_id?: string | null
   type: SessionType
   workout_id?: string | null
+  person_package_id?: string | null
   start_time?: string | null // Scheduled time
   started_at?: string | null // Actual time when session started
   end_time?: string | null // Actual time when session finished
@@ -49,8 +50,12 @@ export async function upsertSession(session: SessionFormData): Promise<Session> 
   if (session.trainer_id !== undefined && session.trainer_id !== null) {
     sessionData.trainer_id = session.trainer_id
   }
-  if (session.workout_id !== undefined && session.workout_id !== null) {
-    sessionData.workout_id = session.workout_id
+  // Allow workout_id to be set to null explicitly (for unassigning workouts)
+  if (session.workout_id !== undefined) {
+    sessionData.workout_id = session.workout_id // This can be null
+  }
+  if (session.person_package_id !== undefined && session.person_package_id !== null) {
+    sessionData.person_package_id = session.person_package_id
   }
   if (session.start_time !== undefined && session.start_time !== null) {
     sessionData.start_time = session.start_time

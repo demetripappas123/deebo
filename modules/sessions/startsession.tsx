@@ -9,6 +9,7 @@ import { SessionWithExercises } from '@/supabase/fetches/fetchsessions'
 import { upsertExerciseSet, upsertSessionExercise, upsertSession, upsertWorkoutExercises, upsertExerciseSets } from '@/supabase/upserts/upsertsession'
 import { getServerTime } from '@/supabase/utils/getServerTime'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
+import { incrementPersonPackageUsedUnits } from '@/supabase/upserts/incrementpersonpackageusedunits'
 import {
   Command,
   CommandInput,
@@ -316,9 +317,32 @@ export default function StartSession({
         started_at: session.started_at || currentTime, // Use existing started_at or set now if not set
         end_time: currentTime, // Set end time when completing (from server)
         workout_id: workoutId, // Use the workoutId (may have been created above)
+        person_package_id: session.person_package_id, // Keep person_package_id
         converted: session.converted,
         status: 'completed', // Set status to completed when finishing session
       })
+
+      // Mark the workout as completed and set workout_date
+      if (workoutId) {
+        const { upsertWorkout } = await import('@/supabase/upserts/upsertworkout')
+        await upsertWorkout({
+          id: workoutId,
+          person_id: session.person_id!,
+          day_id: null, // Keep existing day_id if any
+          completed: true, // Mark workout as completed
+          workout_date: currentTime, // Set workout_date to when the session was completed
+        })
+      }
+
+      // Increment used_units in person_package if session has a person_package_id
+      if (session.person_package_id) {
+        try {
+          await incrementPersonPackageUsedUnits(session.person_package_id)
+        } catch (error) {
+          console.error('Error incrementing person package used units:', error)
+          // Don't fail the session completion if this fails
+        }
+      }
 
       await onSessionComplete()
       alert('Session completed successfully!')

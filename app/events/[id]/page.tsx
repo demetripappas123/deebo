@@ -9,9 +9,10 @@ import EditWorkout from '@/modules/sessions/editworkout'
 import StartSession from '@/modules/sessions/startsession'
 import Questionnaire from '@/modules/sessions/questionnaire'
 import { Button } from '@/components/ui/button'
-import { TrashIcon } from '@heroicons/react/24/solid'
+import { TrashIcon, PencilIcon } from '@heroicons/react/24/solid'
 import { fetchSessionById, fetchSessionWithExercises, SessionWithExercises } from '@/supabase/fetches/fetchsessions'
 import { deleteSession } from '@/supabase/deletions/deletesession'
+import { deleteWorkout } from '@/supabase/deletions/deleteworkout'
 import { upsertSession, upsertSessionExercise, upsertExerciseSet } from '@/supabase/upserts/upsertsession'
 import { SessionType } from '@/supabase/fetches/fetchsessions'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -35,6 +36,7 @@ export default function EventPage() {
   const [startSessionOpen, setStartSessionOpen] = useState(false)
   const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false)
   const [converting, setConverting] = useState(false)
+  const [person, setPerson] = useState<any>(null)
 
   useEffect(() => {
     const loadSession = async () => {
@@ -48,6 +50,16 @@ export default function EventPage() {
         const sessionWithExercises = await fetchSessionWithExercises(id)
         if (sessionWithExercises) {
           setSession(sessionWithExercises)
+          
+          // Fetch person data to check converted_at status
+          if (sessionWithExercises.person_id) {
+            try {
+              const personData = await fetchPersonById(sessionWithExercises.person_id)
+              setPerson(personData)
+            } catch (err) {
+              console.error('Error fetching person:', err)
+            }
+          }
         } else {
           setSession(null)
         }
@@ -195,8 +207,8 @@ export default function EventPage() {
           </p>
         </div>
 
-        {/* Convert to Client button - show if completed and not converted */}
-        {session.status === 'completed' && !session.converted && session.person_id && (
+        {/* Convert to Client button - show if completed, not converted, and person is not already a client */}
+        {session.status === 'completed' && !session.converted && session.person_id && person && person.converted_at === null && (
           <div className="mb-8">
             <Button
               onClick={async () => {
@@ -239,6 +251,14 @@ export default function EventPage() {
                   const sessionWithExercises = await fetchSessionWithExercises(session.id)
                   if (sessionWithExercises) {
                     setSession(sessionWithExercises)
+                  }
+
+                  // Reload person data to update converted_at status
+                  if (session.person_id) {
+                    const updatedPerson = await fetchPersonById(session.person_id)
+                    if (updatedPerson) {
+                      setPerson(updatedPerson)
+                    }
                   }
 
                   alert('Prospect converted to client successfully!')
@@ -343,37 +363,44 @@ export default function EventPage() {
         </p>
       </div>
 
-      {!isCancelled && (
+      {!isCancelled && !session.workout_id && (
         <div className="mt-8">
           <Button
             onClick={() => {
-              if (session && session.exercises && session.exercises.length > 0) {
-                setEditWorkoutOpen(true)
-              } else {
-                setAssignWorkoutOpen(true)
-              }
+              setAssignWorkoutOpen(true)
             }}
             className="bg-[#f97316] hover:bg-[#ea6820] text-white cursor-pointer"
           >
-            {session && session.exercises && session.exercises.length > 0 ? 'Edit Workout' : 'Assign Workout'}
+            Assign Workout
           </Button>
         </div>
       )}
 
       {/* Display assigned workout */}
-      {session && session.exercises && session.exercises.length > 0 && (
+      {session && session.workout_id && (
         <div className="mt-8 bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6 relative">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-white">Assigned Workout</h2>
-            <button
-              onClick={() => setDeleteDialogOpen(true)}
-              className="p-2 text-red-500 hover:text-red-600 cursor-pointer"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setEditWorkoutOpen(true)}
+                className="p-2 text-gray-400 hover:text-white cursor-pointer transition-colors"
+                title="Edit Workout"
+              >
+                <PencilIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => setDeleteDialogOpen(true)}
+                className="p-2 text-red-500 hover:text-red-600 cursor-pointer transition-colors"
+                title="Unassign Workout"
+              >
+                <TrashIcon className="h-5 w-5" />
+              </button>
+            </div>
           </div>
-          <div className="space-y-6">
-            {session.exercises.map((exercise, idx) => (
+          {session.exercises && session.exercises.length > 0 ? (
+            <div className="space-y-6">
+              {session.exercises.map((exercise, idx) => (
               <div key={exercise.id || idx} className="bg-[#111111] rounded-md p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-semibold text-white">
@@ -406,8 +433,13 @@ export default function EventPage() {
                   </div>
                 )}
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-gray-400 text-center py-8">
+              <p>No exercises assigned yet. Click the pencil icon to add exercises.</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -487,7 +519,7 @@ export default function EventPage() {
             }
           }}
           sessionId={session.id}
-          initialExercises={session.exercises}
+          initialExercises={session.exercises || []}
           mode="edit"
           onSave={async (data) => {
             if (!session) return
@@ -497,7 +529,7 @@ export default function EventPage() {
                 throw new Error('Session has no workout assigned')
               }
 
-              // Update the session
+              // Update the session (keep the same workout_id)
               await upsertSession({
                 id: session.id,
                 person_id: session.person_id,
@@ -506,43 +538,40 @@ export default function EventPage() {
                 start_time: data.sessionUpdates?.start_time ?? session.start_time,
                 started_at: session.started_at,
                 end_time: data.sessionUpdates?.end_time ?? session.end_time,
-                workout_id: session.workout_id,
+                workout_id: session.workout_id, // Keep the same workout_id
                 converted: session.converted,
+                status: session.status || 'pending',
+                person_package_id: session.person_package_id,
               })
 
-              // Delete all existing exercises for this workout (cascade will handle sets)
-              const { error: deleteError } = await supabase
-                .from('session_exercises')
-                .delete()
-                .eq('workout_id', session.workout_id)
+              // Use smart update to update exercises and sets (keeps workout_id, updates as needed)
+              const exerciseData = data.exercises.map((ex, index) => ({
+                exercise_id: ex.exercise_id,
+                position: index,
+                notes: ex.notes || null,
+              }))
 
-              if (deleteError) {
-                throw deleteError
-              }
+              // Upsert exercises using smart update (compares and updates/inserts/deletes as needed)
+              const { upsertWorkoutExercises, upsertExerciseSets } = await import('@/supabase/upserts/upsertsession')
+              const updatedExercises = await upsertWorkoutExercises(session.workout_id, exerciseData)
 
-              // Create new exercises and sets
+              // Update sets for each exercise using smart update
               for (let i = 0; i < data.exercises.length; i++) {
                 const exercise = data.exercises[i]
+                const updatedExercise = updatedExercises[i]
                 
-                const sessionExercise = await upsertSessionExercise({
-                  workout_id: session.workout_id,
-                  exercise_id: exercise.exercise_id,
-                  position: i,
-                  notes: exercise.notes || null,
-                })
+                if (updatedExercise && updatedExercise.id && exercise.sets && exercise.sets.length > 0) {
+                  const setData = exercise.sets.map((set, idx) => ({
+                    set_number: idx + 1, // Re-number sets sequentially
+                    weight: set.weight ?? null,
+                    reps: set.reps ?? null,
+                    rir: set.rir ?? null,
+                    rpe: set.rpe ?? null,
+                    notes: set.notes ?? null,
+                  }))
 
-                if (exercise.sets && exercise.sets.length > 0) {
-                  for (const set of exercise.sets) {
-                    await upsertExerciseSet({
-                      session_exercise_id: sessionExercise.id,
-                      set_number: set.set_number,
-                      weight: set.weight ?? null,
-                      reps: set.reps ?? null,
-                      rir: set.rir ?? null,
-                      rpe: set.rpe ?? null,
-                      notes: set.notes ?? null,
-                    })
-                  }
+                  // Use smart update for sets (compares and updates/inserts/deletes as needed)
+                  await upsertExerciseSets(updatedExercise.id, setData)
                 }
               }
             } catch (error) {
@@ -554,13 +583,13 @@ export default function EventPage() {
         />
       )}
 
-      {/* Delete Workout Confirmation Dialog */}
+      {/* Unassign Workout Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="bg-[#1f1f1f] border-[#2a2a2a] text-white">
           <DialogHeader>
             <DialogTitle className="text-white">Unassign Workout</DialogTitle>
             <DialogDescription className="text-gray-300">
-              Are you sure you want to unassign this workout? This will delete the session and all associated exercises and sets.
+              Are you sure you want to unassign this workout from the session? The session will be kept, but the workout will no longer be associated with it. The workout data will remain in the database for history purposes.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -576,15 +605,57 @@ export default function EventPage() {
               type="button"
               variant="destructive"
               onClick={async () => {
-                if (!session) return
+                if (!session || !session.workout_id) return
                 try {
-                  await deleteSession(session.id)
-                  setSession(null)
+                  const workoutIdToDelete = session.workout_id
+                  
+                  // Step 1: Update session to remove workout_id (set to null)
+                  // This keeps the session but unlinks it from the workout
+                  // IMPORTANT: Update session FIRST before deleting workout to avoid any constraint issues
+                  const updatedSession = await upsertSession({
+                    id: session.id,
+                    type: session.type,
+                    person_id: session.person_id,
+                    trainer_id: session.trainer_id,
+                    start_time: session.start_time,
+                    started_at: session.started_at,
+                    end_time: session.end_time,
+                    workout_id: null, // Unassign the workout - set to null
+                    converted: session.converted,
+                    status: session.status || 'pending',
+                    person_package_id: session.person_package_id,
+                  })
+                  
+                  console.log('Session updated, workout_id set to null:', updatedSession)
+                  
+                  // Step 2: Delete the workout entry (this will cascade delete session_exercises and exercise_sets)
+                  // The workout is now unlinked from the session, so deleting it won't affect the session
+                  await deleteWorkout(workoutIdToDelete)
+                  
+                  console.log('Workout deleted:', workoutIdToDelete)
+                  
+                  // Reload session data to reflect the change
+                  const sessionWithExercises = await fetchSessionWithExercises(id)
+                  if (sessionWithExercises) {
+                    console.log('Reloaded session after unassign:', sessionWithExercises)
+                    setSession(sessionWithExercises)
+                  } else {
+                    console.error('Failed to reload session after unassign - session not found')
+                    // Try to fetch just the session without exercises
+                    const basicSession = await fetchSessionById(id)
+                    if (basicSession) {
+                      setSession({ ...basicSession, exercises: [] })
+                    } else {
+                      console.error('Session not found after unassigning workout')
+                      alert('Warning: Session may have been affected. Please refresh the page.')
+                    }
+                  }
+                  
                   setDeleteDialogOpen(false)
                   alert('Workout unassigned successfully')
                 } catch (error) {
-                  console.error('Error deleting workout:', error)
-                  alert('Error unassigning workout. Please try again.')
+                  console.error('Error unassigning workout:', error)
+                  alert(`Error unassigning workout: ${error instanceof Error ? error.message : 'Please try again.'}`)
                 }
               }}
               className="cursor-pointer bg-red-600 hover:bg-red-700 text-white"
