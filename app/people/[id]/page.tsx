@@ -17,14 +17,22 @@ import CompactNutritionGoals from '@/modules/clients/compactnutritiongoals'
 import WorkoutVolumeChart from '@/modules/clients/workoutvolumechart'
 import RPERIRChart from '@/modules/clients/rperirchart'
 import WeightProgressionChart from '@/modules/clients/weightprogressionchart'
+import Packages from '@/modules/clients/packages'
+import Payments from '@/modules/clients/payments'
+import Contracts from '@/modules/clients/contracts'
 import EditWorkout from '@/modules/sessions/editworkout'
+import AddEventDialog from '@/modules/calendar/addevent'
 import { upsertSession, upsertSessionExercise, upsertExerciseSet } from '@/supabase/upserts/upsertsession'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
-import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X } from 'lucide-react'
+import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
+import { fetchPersonPackagesByPersonId, PersonPackage } from '@/supabase/fetches/fetchpersonpackages'
+import { fetchPaymentsByPersonId, Payment } from '@/supabase/fetches/fetchpayments'
+import { fetchPackages, Package as PackageType } from '@/supabase/fetches/fetchpackages'
+import { fetchContractsByPersonId, Contract } from '@/supabase/fetches/fetchcontracts'
 import {
   Command,
   CommandInput,
@@ -46,7 +54,7 @@ export default function PersonPage() {
   const [workouts, setWorkouts] = useState<WorkoutWithData[]>([])
   const [loading, setLoading] = useState(true)
   const [isEditingNutrition, setIsEditingNutrition] = useState(false)
-  const [activeTab, setActiveTab] = useState<'nutrition' | 'sessions' | 'workouts' | 'progress'>('progress')
+  const [activeTab, setActiveTab] = useState<'nutrition' | 'sessions' | 'workouts' | 'progress' | 'packages' | 'payments' | 'contracts'>('progress')
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null)
   const [showAddWorkoutForm, setShowAddWorkoutForm] = useState(false)
@@ -69,6 +77,10 @@ export default function PersonPage() {
   }>>([])
   const [openCombobox, setOpenCombobox] = useState<{ [key: number]: boolean }>({})
   const [searchValue, setSearchValue] = useState<{ [key: number]: string }>({})
+  const [personPackages, setPersonPackages] = useState<PersonPackage[]>([])
+  const [packages, setPackages] = useState<PackageType[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [contracts, setContracts] = useState<Contract[]>([])
 
   const isClient = person?.converted_at !== null && person?.converted_at !== undefined
   const isProspect = !isClient
@@ -111,15 +123,51 @@ export default function PersonPage() {
               console.error('Error loading nutrition goals:', err)
               setNutritionGoals([])
             }
+
+            // Fetch person_packages for this client
+            try {
+              const personPackagesData = await fetchPersonPackagesByPersonId(personData.id)
+              setPersonPackages(personPackagesData || [])
+            } catch (err) {
+              console.error('Error loading person packages:', err)
+              setPersonPackages([])
+            }
+
+            // Fetch payments for this client
+            try {
+              const paymentsData = await fetchPaymentsByPersonId(personData.id)
+              setPayments(paymentsData || [])
+            } catch (err) {
+              console.error('Error loading payments:', err)
+              setPayments([])
+            }
+
+            // Fetch contracts for this client
+            try {
+              const contractsData = await fetchContractsByPersonId(personData.id)
+              setContracts(contractsData || [])
+            } catch (err) {
+              console.error('Error loading contracts:', err)
+              setContracts([])
+            }
+          }
+
+          // Fetch all packages (for reference in packages tab)
+          try {
+            const packagesData = await fetchPackages()
+            setPackages(packagesData || [])
+          } catch (err) {
+            console.error('Error loading packages:', err)
+            setPackages([])
           }
 
           // Fetch sessions for this person (both clients and prospects have sessions) - metadata only
           try {
             const personSessions = await fetchClientSessions(personData.id)
             setSessions(personSessions.sort((a, b) => {
-              const dateA = a.start_time ? new Date(a.start_time).getTime() : 0
-              const dateB = b.start_time ? new Date(b.start_time).getTime() : 0
-              return dateB - dateA
+                  const dateA = a.start_time ? new Date(a.start_time).getTime() : 0
+                  const dateB = b.start_time ? new Date(b.start_time).getTime() : 0
+                  return dateB - dateA
             }))
           } catch (err) {
             console.error('Error loading sessions:', err)
@@ -147,6 +195,37 @@ export default function PersonPage() {
 
     loadPerson()
   }, [params.id])
+
+  // Prevent body scroll when edit overlay is open
+  useEffect(() => {
+    if (editingWorkoutId && editingWorkoutId !== 'new') {
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = ''
+      }
+    }
+  }, [editingWorkoutId])
+
+  // Load exercise library when add workout form is shown
+  useEffect(() => {
+    const loadExerciseLibrary = async () => {
+      if (showAddWorkoutForm) {
+        console.log('Loading exercise library for workout form...')
+        try {
+          const exercises = await fetchExercises()
+          console.log('Exercise library loaded:', exercises.length, 'exercises')
+          setExerciseLibrary(exercises)
+    } catch (err) {
+          console.error('Error loading exercise library:', err)
+          setExerciseLibrary([])
+        }
+      } else {
+        // Clear when form is closed
+        setExerciseLibrary([])
+      }
+    }
+    loadExerciseLibrary()
+  }, [showAddWorkoutForm])
 
   const handleConvertToClient = () => {
     if (!person) return
@@ -220,7 +299,23 @@ export default function PersonPage() {
         ← Back
       </button>
 
-      <h1 className="text-3xl font-bold mb-4">{person.name}</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-bold">{person.name}</h1>
+        {isClient && (
+          <AddEventDialog
+            initialPersonId={person.id}
+            initialType="Client Session"
+            trigger={
+              <button
+                className="p-2 bg-[#333333] hover:bg-[#404040] rounded-md text-white cursor-pointer transition-colors"
+                title="Schedule New Session"
+              >
+                <Calendar className="h-5 w-5" />
+              </button>
+            }
+          />
+        )}
+      </div>
 
       {/* Tab Navigation */}
       <div className="flex gap-2 mb-6 border-b border-[#2a2a2a]">
@@ -254,7 +349,7 @@ export default function PersonPage() {
               : 'text-gray-400 hover:text-gray-300'
           } cursor-pointer`}
         >
-          <Dumbbell className="h-5 w-5" />
+          <FileText className="h-5 w-5" />
           Session History
         </button>
         <button
@@ -265,9 +360,46 @@ export default function PersonPage() {
               : 'text-gray-400 hover:text-gray-300'
           } cursor-pointer`}
         >
-          <Activity className="h-5 w-5" />
+          <Dumbbell className="h-5 w-5" />
           Workout History
         </button>
+        {isClient && (
+          <>
+            <button
+              onClick={() => setActiveTab('packages')}
+              className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
+                activeTab === 'packages'
+                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  : 'text-gray-400 hover:text-gray-300'
+              } cursor-pointer`}
+            >
+              <Box className="h-5 w-5" />
+              Packages
+            </button>
+            <button
+              onClick={() => setActiveTab('payments')}
+              className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
+                activeTab === 'payments'
+                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  : 'text-gray-400 hover:text-gray-300'
+              } cursor-pointer`}
+            >
+              <DollarSign className="h-5 w-5" />
+              Payments
+            </button>
+            <button
+              onClick={() => setActiveTab('contracts')}
+              className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
+                activeTab === 'contracts'
+                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  : 'text-gray-400 hover:text-gray-300'
+              } cursor-pointer`}
+            >
+              <FileText className="h-5 w-5" />
+              Contracts
+            </button>
+          </>
+        )}
       </div>
 
       {/* Tab Content */}
@@ -343,10 +475,10 @@ export default function PersonPage() {
                       <div className="space-y-1 text-sm text-gray-400">
                         <p>
                           <span className="font-semibold text-white">Scheduled:</span>{' '}
-                          {session.start_time
-                            ? new Date(session.start_time).toLocaleString()
-                            : 'No date'}
-                        </p>
+                        {session.start_time
+                          ? new Date(session.start_time).toLocaleString()
+                          : 'No date'}
+                      </p>
                         {session.started_at && (
                           <p>
                             <span className="font-semibold text-white">Started:</span>{' '}
@@ -359,16 +491,16 @@ export default function PersonPage() {
                             {new Date(session.end_time).toLocaleString()}
                           </p>
                         )}
-                        {session.started_at && session.end_time && (() => {
-                          const startTime = new Date(session.started_at).getTime()
-                          const endTime = new Date(session.end_time).getTime()
-                          const durationMinutes = Math.round((endTime - startTime) / (1000 * 60))
-                          return (
+                      {session.started_at && session.end_time && (() => {
+                        const startTime = new Date(session.started_at).getTime()
+                        const endTime = new Date(session.end_time).getTime()
+                        const durationMinutes = Math.round((endTime - startTime) / (1000 * 60))
+                        return (
                             <p>
                               <span className="font-semibold text-white">Duration:</span> {durationMinutes} minutes
-                            </p>
-                          )
-                        })()}
+                          </p>
+                        )
+                      })()}
                         {session.workout_id && (
                           <p className="text-xs text-orange-400 mt-2">
                             ✓ Workout assigned
@@ -422,7 +554,7 @@ export default function PersonPage() {
                   type="date"
                   value={newWorkoutDate}
                   onChange={(e) => setNewWorkoutDate(e.target.value)}
-                  className="bg-[#1f1f1f] text-white border-[#2a2a2a] max-w-xs"
+                  className="bg-[#1f1f1f] text-white border-[#2a2a2a] max-w-xs cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:invert"
                   required
                 />
               </div>
@@ -441,7 +573,7 @@ export default function PersonPage() {
                         sets: [],
                       }])
                     }}
-                    className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 h-auto"
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 h-auto cursor-pointer"
                   >
                     <PlusIcon className="h-3 w-3 mr-1" />
                     Add Exercise
@@ -456,25 +588,40 @@ export default function PersonPage() {
                           Exercise {exIdx + 1}
                         </label>
                         <div className="relative">
-                          <Command className="bg-[#1f1f1f] border border-[#2a2a2a]">
+                          <Command className="bg-[#111111] border border-[#2a2a2a]">
                             <CommandInput
                               placeholder="Search exercises..."
-                              value={searchValue[exIdx] || ''}
+                              value={searchValue[exIdx] || exercise.exercise_name || ''}
                               onValueChange={(value) => {
                                 setSearchValue({ ...searchValue, [exIdx]: value })
-                                setOpenCombobox({ ...openCombobox, [exIdx]: true })
+                                const updated = [...newWorkoutExercises]
+                                updated[exIdx].exercise_name = value
+                                setNewWorkoutExercises(updated)
+                                if (exerciseLibrary.length > 0) {
+                                  setOpenCombobox({ ...openCombobox, [exIdx]: true })
+                                }
                               }}
-                              className="text-white"
+                              onFocus={() => {
+                                if (exerciseLibrary.length > 0) {
+                                  setOpenCombobox({ ...openCombobox, [exIdx]: true })
+                                }
+                              }}
+                              onBlur={() => {
+                                setTimeout(() => {
+                                  setOpenCombobox((prev) => ({ ...prev, [exIdx]: false }))
+                                }, 200)
+                              }}
+                              className="text-white bg-[#111111]"
                             />
-                            {openCombobox[exIdx] && (
-                              <CommandList>
-                                <CommandEmpty>No exercises found.</CommandEmpty>
-                                <CommandGroup>
+                            {openCombobox[exIdx] && exerciseLibrary.length > 0 && (
+                              <CommandList className="max-h-[200px] overflow-y-auto bg-[#111111] border border-[#2a2a2a]">
+                                <CommandEmpty className="text-gray-400">No exercises found.</CommandEmpty>
+                                <CommandGroup className="bg-[#111111]">
                                   {exerciseLibrary
-                                    .filter(ex => 
-                                      !searchValue[exIdx] || 
-                                      ex.name.toLowerCase().includes(searchValue[exIdx].toLowerCase())
-                                    )
+                                    .filter(ex => {
+                                      const search = (searchValue[exIdx] || exercise.exercise_name || '').toLowerCase()
+                                      return search === '' || ex.name.toLowerCase().includes(search)
+                                    })
                                     .map((ex) => (
                                       <CommandItem
                                         key={ex.id}
@@ -487,10 +634,10 @@ export default function PersonPage() {
                                             exercise_name: ex.name,
                                           }
                                           setNewWorkoutExercises(updated)
-                                          setOpenCombobox({ ...openCombobox, [exIdx]: false })
-                                          setSearchValue({ ...searchValue, [exIdx]: ex.name })
+                                          setOpenCombobox((prev) => ({ ...prev, [exIdx]: false }))
+                                          setSearchValue((prev) => ({ ...prev, [exIdx]: ex.name }))
                                         }}
-                                        className="text-white hover:bg-[#2a2a2a] cursor-pointer"
+                                        className="text-white hover:bg-[#2a2a2a] cursor-pointer bg-[#111111]"
                                       >
                                         {ex.name}
                                       </CommandItem>
@@ -510,7 +657,7 @@ export default function PersonPage() {
                           const updated = newWorkoutExercises.filter((_, i) => i !== exIdx)
                           setNewWorkoutExercises(updated)
                         }}
-                        className="p-1 text-red-500 hover:text-red-600"
+                        className="p-1 text-red-500 hover:text-red-600 cursor-pointer"
                       >
                         <Trash className="h-4 w-4" />
                       </button>
@@ -549,7 +696,7 @@ export default function PersonPage() {
                             }]
                             setNewWorkoutExercises(updated)
                           }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 h-auto"
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 h-auto cursor-pointer"
                         >
                           <PlusIcon className="h-3 w-3 mr-1" />
                           Add Set
@@ -580,7 +727,7 @@ export default function PersonPage() {
                                   updated[exIdx].sets[setIdx].weight = e.target.value ? parseFloat(e.target.value) : null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8"
+                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               />
                               <Input
                                 type="number"
@@ -591,7 +738,7 @@ export default function PersonPage() {
                                   updated[exIdx].sets[setIdx].reps = e.target.value ? parseInt(e.target.value) : null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8"
+                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               />
                               <Input
                                 type="number"
@@ -602,18 +749,19 @@ export default function PersonPage() {
                                   updated[exIdx].sets[setIdx].rir = e.target.value ? parseInt(e.target.value) : null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8"
+                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               />
                               <Input
                                 type="number"
+                                step="0.5"
                                 placeholder="RPE"
                                 value={set.rpe ?? ''}
                                 onChange={(e) => {
                                   const updated = [...newWorkoutExercises]
-                                  updated[exIdx].sets[setIdx].rpe = e.target.value ? parseInt(e.target.value) : null
+                                  updated[exIdx].sets[setIdx].rpe = e.target.value ? parseFloat(e.target.value) : null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8"
+                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               />
                               <Input
                                 type="text"
@@ -638,7 +786,7 @@ export default function PersonPage() {
                                   }))
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="p-1 text-red-500 hover:text-red-600"
+                                className="p-1 text-red-500 hover:text-red-600 cursor-pointer"
                               >
                                 <Trash className="h-3 w-3" />
                               </button>
@@ -664,7 +812,7 @@ export default function PersonPage() {
                       alert('Please add at least one exercise')
                       return
                     }
-                    if (newWorkoutExercises.some(ex => !ex.exercise_id)) {
+                    if (newWorkoutExercises.some(ex => !ex.exercise_id || ex.exercise_id.trim() === '')) {
                       alert('Please select an exercise for all exercise entries')
                       return
                     }
@@ -718,7 +866,7 @@ export default function PersonPage() {
                       alert('Error creating workout. Please try again.')
                     }
                   }}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-green-600 hover:bg-green-700 text-white cursor-pointer"
                 >
                   Save Workout
                 </Button>
@@ -731,7 +879,7 @@ export default function PersonPage() {
                     setSearchValue({})
                   }}
                   variant="outline"
-                  className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a]"
+                  className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
                 >
                   Cancel
                 </Button>
@@ -784,11 +932,11 @@ export default function PersonPage() {
                     </div>
                     <button
                       onClick={() => setEditingWorkoutId(workout.id)}
-                      className="p-2 text-orange-500 hover:text-orange-600 cursor-pointer"
+                        className="p-2 text-orange-500 hover:text-orange-600 cursor-pointer"
                       title="Edit workout"
-                    >
-                      <Pencil className="h-5 w-5" />
-                    </button>
+                      >
+                        <Pencil className="h-5 w-5" />
+                      </button>
                   </div>
 
                   {workout.exercises && workout.exercises.length > 0 ? (
@@ -915,19 +1063,60 @@ export default function PersonPage() {
         </div>
       )}
 
-      {/* Edit Workout Dialog - Only for editing existing workouts */}
+      {activeTab === 'packages' && isClient && (
+        <Packages personPackages={personPackages} packages={packages} />
+      )}
+
+      {activeTab === 'payments' && isClient && person && (
+        <Payments 
+          payments={payments} 
+          personPackages={personPackages} 
+          packages={packages}
+          personId={person.id}
+          onPaymentAdded={async () => {
+            // Reload payments and person packages after payment is added/updated/deleted
+            try {
+              const paymentsData = await fetchPaymentsByPersonId(person.id)
+              setPayments(paymentsData || [])
+              const personPackagesData = await fetchPersonPackagesByPersonId(person.id)
+              setPersonPackages(personPackagesData || [])
+            } catch (err) {
+              console.error('Error reloading payments:', err)
+            }
+          }}
+        />
+      )}
+
+      {activeTab === 'contracts' && isClient && (
+        <Contracts contracts={contracts} packages={packages} />
+      )}
+
+      {/* Edit Workout Overlay - Full screen except sidebar */}
       {editingWorkoutId && editingWorkoutId !== 'new' && (() => {
         const workoutToEdit = workouts.find(w => w.id === editingWorkoutId)
         
         return (
+          <div className="fixed inset-0 bg-[#111111] z-50 overflow-y-auto overflow-x-hidden" style={{ marginLeft: '256px' }}>
+            <div className="max-w-4xl mx-auto p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white">Edit Workout</h2>
+                <button
+                  onClick={() => setEditingWorkoutId(null)}
+                  className="p-2 text-gray-400 hover:text-white cursor-pointer"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
           <EditWorkout
-            open={!!editingWorkoutId}
+                open={!!editingWorkoutId}
             onOpenChange={(open) => {
-              if (!open) setEditingWorkoutId(null)
+                  if (!open) setEditingWorkoutId(null)
             }}
-            sessionId={workoutToEdit?.session?.id}
-            initialExercises={workoutToEdit?.exercises}
+                sessionId={workoutToEdit?.session?.id}
+                initialExercises={workoutToEdit?.exercises}
             mode="edit"
+                hideDialog={true}
             onSave={async (data) => {
               try {
                 if (!person) {
@@ -948,10 +1137,22 @@ export default function PersonPage() {
 
                 if (deleteError) throw deleteError
 
+                // Filter out exercises without valid exercise_id
+                const validExercises = data.exercises.filter(ex => ex.exercise_id && ex.exercise_id.trim() !== '')
+                
+                if (validExercises.length === 0) {
+                  alert('Please select at least one exercise before saving.')
+                  throw new Error('No valid exercises to save')
+                }
+
+                if (validExercises.length !== data.exercises.length) {
+                  alert(`Warning: ${data.exercises.length - validExercises.length} exercise(s) without a selected exercise were skipped.`)
+                }
+
                 // Create new exercises and sets (using workout_id)
                 // Use array index as position to ensure 0-indexed positions
-                for (let i = 0; i < data.exercises.length; i++) {
-                  const exercise = data.exercises[i]
+                for (let i = 0; i < validExercises.length; i++) {
+                  const exercise = validExercises[i]
                   
                   const sessionExercise = await upsertSessionExercise({
                     workout_id: workoutId,
@@ -986,6 +1187,8 @@ export default function PersonPage() {
               }
             }}
           />
+            </div>
+          </div>
         )
       })()}
     </div>

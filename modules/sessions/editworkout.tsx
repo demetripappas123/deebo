@@ -51,6 +51,7 @@ type EditWorkoutProps = {
     }
   }) => Promise<void>
   mode?: 'create' | 'edit' | 'in-progress' // create = new workout, edit = from template/day, in-progress = editing active session
+  hideDialog?: boolean // If true, render without Dialog wrapper (for full-screen overlay)
 }
 
 export default function EditWorkout({
@@ -60,6 +61,7 @@ export default function EditWorkout({
   initialExercises,
   onSave,
   mode = 'create',
+  hideDialog = false,
 }: EditWorkoutProps) {
   const [exercises, setExercises] = useState<LocalExercise[]>([])
   const [exerciseLibrary, setExerciseLibrary] = useState<{ id: string; name: string }[]>([])
@@ -198,6 +200,14 @@ export default function EditWorkout({
   const handleSave = async () => {
     setLoading(true)
     try {
+      // Validate that all exercises have valid exercise_id
+      const exercisesWithoutId = exercises.filter(ex => !ex.exercise_id || ex.exercise_id.trim() === '')
+      if (exercisesWithoutId.length > 0) {
+        alert(`Please select an exercise for all exercise entries. ${exercisesWithoutId.length} exercise(s) are missing a selection.`)
+        setLoading(false)
+        return
+      }
+
       // Ensure all exercises have correct positions (0-indexed)
       const exercisesWithPositions = exercises.map((ex, index) => ({
         ...ex,
@@ -219,9 +229,11 @@ export default function EditWorkout({
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto bg-[#1f1f1f] border-[#2a2a2a] text-white custom-scrollbar">
+  if (!open) return null
+
+  const content = (
+    <>
+      {!hideDialog && (
         <DialogHeader>
           <DialogTitle className="text-white">
             {mode === 'create' && 'Assign Workout'}
@@ -229,6 +241,7 @@ export default function EditWorkout({
             {mode === 'in-progress' && 'Edit Session Workout'}
           </DialogTitle>
         </DialogHeader>
+      )}
 
         {/* Session timing (only for in-progress mode) */}
         {mode === 'in-progress' && (
@@ -256,37 +269,25 @@ export default function EditWorkout({
           </div>
         )}
 
-        {/* Exercises */}
-        <div className="space-y-6">
+        {/* Exercises - Compact layout matching display UI */}
+        <div className="space-y-3 mt-4">
           {exercises.map((ex, index) => (
-            <div key={index} className="border border-[#2a2a2a] p-3 rounded-lg relative bg-[#111111]">
-              {exercises.length > 0 && (
-                <button
-                  onClick={() => removeExercise(index)}
-                  className="absolute right-2 top-2 text-red-500 hover:text-red-600 cursor-pointer"
-                >
-                  <Trash size={16} />
-                </button>
-              )}
-
-              <div className="space-y-3">
-                {/* Exercise Selection */}
-                <div className="relative">
-                  <label className="text-sm text-white">Exercise Name</label>
-                  <div className="relative">
+            <div key={index} className="bg-[#1a1a1a] rounded-md p-3 relative">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex-1 relative">
+                  <div className="relative inline-block">
+                    <span className="text-md font-medium text-white mr-1">{index + 1}.</span>
                     <Input
-                      value={ex.exercise_name}
+                      value={ex.exercise_name || ''}
                       onChange={(e) => {
                         const value = e.target.value
                         updateExercise(index, 'exercise_name', value)
                         setSearchValue((prev) => ({ ...prev, [index]: value }))
-                        // Open dropdown when typing if exercise library is loaded
                         if (exerciseLibrary.length > 0) {
                           setOpenCombobox((prev) => ({ ...prev, [index]: true }))
                         }
                       }}
                       onFocus={() => {
-                        // Always open dropdown when focused if exercise library is loaded
                         if (exerciseLibrary.length > 0) {
                           setOpenCombobox((prev) => ({ ...prev, [index]: true }))
                         }
@@ -296,31 +297,27 @@ export default function EditWorkout({
                           setOpenCombobox((prev) => ({ ...prev, [index]: false }))
                         }, 200)
                       }}
-                      placeholder="Type to search exercises..."
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400"
+                      placeholder="Exercise name..."
+                      className="bg-transparent border-none text-md font-medium text-white p-0 h-auto w-auto inline-block focus:ring-0 focus-visible:ring-0 min-w-[200px]"
                     />
                     {openCombobox[index] && (
                       <div
-                        className="absolute z-50 w-full mt-1 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md shadow-lg"
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                        }}
+                        className="absolute z-50 w-full mt-1 bg-[#111111] border border-[#2a2a2a] rounded-md shadow-lg"
+                        onMouseDown={(e) => e.preventDefault()}
                       >
-                        <Command className="bg-[#1f1f1f] text-white">
+                        <Command className="bg-[#111111] text-white">
                           <CommandInput
-                            value={searchValue[index] || ex.exercise_name}
+                            value={searchValue[index] || ex.exercise_name || ''}
                             onValueChange={(value) => {
                               setSearchValue((prev) => ({ ...prev, [index]: value }))
                               updateExercise(index, 'exercise_name', value)
                             }}
                             placeholder="Search exercises..."
-                            className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400"
+                            className="bg-[#111111] text-white border-[#2a2a2a]"
                           />
-                          <CommandList className="max-h-[200px] overflow-y-auto bg-[#1f1f1f] custom-scrollbar">
-                            <CommandEmpty className="text-gray-400 py-4 text-center">
-                              No exercises found.
-                            </CommandEmpty>
-                            <CommandGroup className="bg-[#1f1f1f]">
+                          <CommandList className="max-h-[200px] overflow-y-auto bg-[#111111]">
+                            <CommandEmpty className="text-gray-400 py-4 text-center">No exercises found.</CommandEmpty>
+                            <CommandGroup className="bg-[#111111]">
                               {exerciseLibrary.length > 0 ? (
                                 exerciseLibrary
                                   .filter((exercise) => {
@@ -328,24 +325,22 @@ export default function EditWorkout({
                                     return search === '' || exercise.name.toLowerCase().includes(search)
                                   })
                                   .map((exercise) => (
-                                  <CommandItem
-                                    key={exercise.id}
-                                    value={exercise.name}
-                                    onSelect={() => {
-                                      updateExercise(index, 'exercise_name', exercise.name)
-                                      updateExercise(index, 'exercise_id', exercise.id)
-                                      setSearchValue((prev) => ({ ...prev, [index]: exercise.name }))
-                                      setOpenCombobox((prev) => ({ ...prev, [index]: false }))
-                                    }}
-                                    className="text-white hover:bg-[#333333] cursor-pointer data-[selected=true]:bg-[#333333] data-[selected=true]:text-white"
-                                  >
-                                    {exercise.name}
-                                  </CommandItem>
+                                    <CommandItem
+                                      key={exercise.id}
+                                      value={exercise.name}
+                                      onSelect={() => {
+                                        updateExercise(index, 'exercise_name', exercise.name)
+                                        updateExercise(index, 'exercise_id', exercise.id)
+                                        setSearchValue((prev) => ({ ...prev, [index]: exercise.name }))
+                                        setOpenCombobox((prev) => ({ ...prev, [index]: false }))
+                                      }}
+                                      className="text-white hover:bg-[#2a2a2a] cursor-pointer bg-[#111111]"
+                                    >
+                                      {exercise.name}
+                                    </CommandItem>
                                   ))
                               ) : (
-                                <div className="text-gray-400 py-2 px-4 text-sm">
-                                  Loading exercises...
-                                </div>
+                                <div className="text-gray-400 py-2 px-4 text-sm">Loading exercises...</div>
                               )}
                             </CommandGroup>
                           </CommandList>
@@ -354,122 +349,99 @@ export default function EditWorkout({
                     )}
                   </div>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="text"
+                    value={ex.notes || ''}
+                    onChange={(e) => updateExercise(index, 'notes', e.target.value)}
+                    placeholder="Notes"
+                    className="bg-transparent border-none text-xs text-gray-400 p-0 h-auto w-32 focus:ring-0"
+                  />
+                  <button
+                    onClick={() => removeExercise(index)}
+                    className="p-1 text-red-500 hover:text-red-600 cursor-pointer"
+                  >
+                    <Trash size={14} />
+                  </button>
+                </div>
+              </div>
 
-                {/* Sets */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm text-white">Sets</label>
-                    <Button
-                      onClick={() => addSet(index)}
-                      variant="ghost"
-                      size="sm"
-                      className="text-gray-400 hover:text-white cursor-pointer h-6 text-xs"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Set
-                    </Button>
+              {ex.sets && ex.sets.length > 0 && (
+                <div className="space-y-1">
+                  <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-gray-400 pb-1 border-b border-[#2a2a2a]">
+                    <div>Set</div>
+                    <div>Weight</div>
+                    <div>Reps</div>
+                    <div>RIR</div>
+                    <div>RPE</div>
+                    <div>Notes</div>
                   </div>
-
-                  {ex.sets.map((set, setIndex) => (
-                    <div
-                      key={setIndex}
-                      className="bg-[#0a0a0a] border border-[#2a2a2a] rounded p-2 space-y-2"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-400">Set {set.set_number}</span>
-                        <Button
-                          onClick={() => removeSet(index, setIndex)}
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-400 hover:text-red-300 cursor-pointer h-5 w-5 p-0"
+                  {ex.sets.map((set, setIdx) => (
+                    <div key={setIdx} className="grid grid-cols-6 gap-2 text-xs items-center">
+                      <div className="text-gray-300">{set.set_number}</div>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={set.weight ?? ''}
+                        onChange={(e) => updateSet(index, setIdx, 'weight', e.target.value ? parseFloat(e.target.value) : null)}
+                        placeholder="-"
+                        className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      />
+                      <Input
+                        type="number"
+                        value={set.reps ?? ''}
+                        onChange={(e) => updateSet(index, setIdx, 'reps', e.target.value ? parseInt(e.target.value) : null)}
+                        placeholder="-"
+                        className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      />
+                      <Input
+                        type="number"
+                        value={set.rir ?? ''}
+                        onChange={(e) => updateSet(index, setIdx, 'rir', e.target.value ? parseInt(e.target.value) : null)}
+                        placeholder="-"
+                        className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      />
+                      <Input
+                        type="number"
+                        step="0.5"
+                        value={set.rpe ?? ''}
+                        onChange={(e) => updateSet(index, setIdx, 'rpe', e.target.value ? parseFloat(e.target.value) : null)}
+                        placeholder="-"
+                        className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      />
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="text"
+                          value={set.notes ?? ''}
+                          onChange={(e) => updateSet(index, setIdx, 'notes', e.target.value || null)}
+                          placeholder="-"
+                          className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs truncate flex-1 focus:ring-0"
+                        />
+                        <button
+                          onClick={() => removeSet(index, setIdx)}
+                          className="p-0.5 text-red-400 hover:text-red-300 cursor-pointer opacity-0 group-hover:opacity-100"
                         >
-                          <Trash className="h-3 w-3" />
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-5 gap-2">
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Weight</label>
-                          <Input
-                            type="number"
-                            value={set.weight ?? ''}
-                            onChange={(e) =>
-                              updateSet(index, setIndex, 'weight', e.target.value ? parseFloat(e.target.value) : null)
-                            }
-                            placeholder="lbs"
-                            className="bg-[#111111] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Reps</label>
-                          <Input
-                            type="number"
-                            value={set.reps ?? ''}
-                            onChange={(e) =>
-                              updateSet(index, setIndex, 'reps', e.target.value ? parseInt(e.target.value) : null)
-                            }
-                            placeholder="reps"
-                            className="bg-[#111111] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">RIR</label>
-                          <Input
-                            type="number"
-                            value={set.rir ?? ''}
-                            onChange={(e) =>
-                              updateSet(index, setIndex, 'rir', e.target.value ? parseInt(e.target.value) : null)
-                            }
-                            placeholder="RIR"
-                            className="bg-[#111111] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">RPE</label>
-                          <Input
-                            type="number"
-                            step="0.5"
-                            value={set.rpe ?? ''}
-                            onChange={(e) =>
-                              updateSet(index, setIndex, 'rpe', e.target.value ? parseFloat(e.target.value) : null)
-                            }
-                            placeholder="RPE"
-                            className="bg-[#111111] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Notes</label>
-                          <Input
-                            type="text"
-                            value={set.notes ?? ''}
-                            onChange={(e) => updateSet(index, setIndex, 'notes', e.target.value || null)}
-                            placeholder="notes"
-                            className="bg-[#111111] text-white border-[#2a2a2a] text-xs h-8"
-                          />
-                        </div>
+                          <Trash size={10} />
+                        </button>
                       </div>
                     </div>
                   ))}
-
-                  {ex.sets.length === 0 && (
-                    <div className="text-center py-2 text-xs text-gray-500">
-                      No sets added. Click "Add Set" to add sets for this exercise.
-                    </div>
-                  )}
                 </div>
-
-                {/* Exercise Notes */}
-                <div>
-                  <label className="text-sm text-white">Exercise Notes</label>
-                  <Textarea
-                    value={ex.notes}
-                    onChange={(e) => updateExercise(index, 'notes', e.target.value)}
-                    placeholder="Cues, tempo, reminders..."
-                    className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400"
-                    rows={2}
-                  />
+              )}
+              {ex.sets.length === 0 && (
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-xs text-gray-500">No sets</span>
+                  <Button
+                    onClick={() => addSet(index)}
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-6 px-2 text-gray-400 hover:text-white cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Set
+                  </Button>
                 </div>
-              </div>
+              )}
             </div>
           ))}
 
@@ -477,12 +449,13 @@ export default function EditWorkout({
           <Button
             onClick={addExercise}
             variant="outline"
-            className="w-full border-[#2a2a2a] bg-[#333333] text-white hover:bg-[#404040] hover:text-white flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full border-[#2a2a2a] bg-[#333333] text-white hover:bg-[#404040] hover:text-white flex items-center justify-center gap-2 cursor-pointer text-sm py-2"
           >
-            <Plus size={18} /> Add Exercise
+            <Plus size={16} /> Add Exercise
           </Button>
         </div>
 
+      {!hideDialog && (
         <DialogFooter>
           <Button
             className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
@@ -492,6 +465,29 @@ export default function EditWorkout({
             {loading ? 'Saving...' : mode === 'create' ? 'Assign Workout' : 'Save Workout'}
           </Button>
         </DialogFooter>
+      )}
+      {hideDialog && (
+        <div className="mt-6">
+          <Button
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+            onClick={handleSave}
+            disabled={loading || exercises.length === 0}
+          >
+            {loading ? 'Saving...' : mode === 'create' ? 'Assign Workout' : 'Save Workout'}
+          </Button>
+        </div>
+      )}
+    </>
+  )
+
+  if (hideDialog) {
+    return <div className="space-y-6" style={{ overflow: 'visible' }}>{content}</div>
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto bg-[#1f1f1f] border-[#2a2a2a] text-white custom-scrollbar">
+        {content}
       </DialogContent>
     </Dialog>
   )

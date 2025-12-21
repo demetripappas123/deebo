@@ -65,3 +65,39 @@ export async function fetchPaymentById(paymentId: string): Promise<Payment | nul
   return data
 }
 
+/**
+ * Fetch payments for a specific person (through person_packages)
+ */
+export async function fetchPaymentsByPersonId(personId: string): Promise<Payment[]> {
+  // First, get all person_packages for this person
+  const { data: personPackages, error: ppError } = await supabase
+    .from('person_packages')
+    .select('id')
+    .eq('person_id', personId)
+
+  if (ppError) {
+    console.error('Error fetching person_packages for payments:', ppError)
+    throw ppError
+  }
+
+  if (!personPackages || personPackages.length === 0) {
+    return []
+  }
+
+  const personPackageIds = personPackages.map(pp => pp.id)
+
+  // Then fetch payments for those person_packages
+  const { data, error } = await supabase
+    .from('payments')
+    .select('*')
+    .in('person_package_id', personPackageIds)
+    .order('payment_date', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching payments by person:', error)
+    throw error
+  }
+
+  return data ?? []
+}
+

@@ -20,11 +20,17 @@ import { upsertProspect, ProspectFormData } from '@/supabase/upserts/upsertperso
 import { fetchPackages } from '@/supabase/fetches/fetchpackages'
 import { fetchPersonPackagesWithRemaining, PersonPackageWithRemaining } from '@/supabase/fetches/fetchpersonpackageswithremaining'
 
-export default function AddEventDialog() {
+type AddEventDialogProps = {
+  initialPersonId?: string | null
+  initialType?: SessionType
+  trigger?: React.ReactNode
+}
+
+export default function AddEventDialog({ initialPersonId = null, initialType = 'Client Session', trigger }: AddEventDialogProps = {}) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [type, setType] = useState<SessionType>('Client Session')
-  const [personId, setPersonId] = useState<string | null>(null)
+  const [type, setType] = useState<SessionType>(initialType)
+  const [personId, setPersonId] = useState<string | null>(initialPersonId)
   const [startTime, setStartTime] = useState<string>(new Date().toISOString().slice(0,16))
   const [clients, setClients] = useState<Client[]>([])
   const [prospects, setProspects] = useState<Prospect[]>([])
@@ -42,6 +48,14 @@ export default function AddEventDialog() {
   // Only "Client Session" uses clients, all other types use prospects
   const isClientType = type === 'Client Session'
   const isProspectType = type !== 'Client Session'
+
+  // Update personId when initialPersonId changes
+  useEffect(() => {
+    if (initialPersonId !== null && initialPersonId !== undefined) {
+      setPersonId(initialPersonId)
+      setType(initialType)
+    }
+  }, [initialPersonId, initialType])
 
   // Load clients, prospects, and packages
   useEffect(() => {
@@ -159,11 +173,17 @@ export default function AddEventDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-orange-500 text-white font-semibold hover:bg-orange-600 cursor-pointer">
-          Add Event
-        </Button>
-      </DialogTrigger>
+      {trigger ? (
+        <DialogTrigger asChild>
+          {trigger}
+        </DialogTrigger>
+      ) : (
+        <DialogTrigger asChild>
+          <Button className="bg-orange-500 text-white font-semibold hover:bg-orange-600 cursor-pointer">
+            Add Event
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-lg bg-[#1f1f1f] text-white border border-[#2a2a2a]">
         <DialogHeader>
           <DialogTitle>Add New Event</DialogTitle>

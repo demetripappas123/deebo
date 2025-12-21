@@ -74,27 +74,23 @@ export default function PaymentsPage() {
         notes: notes || null,
       })
 
-      // Associate payment to person_package based on payment date
+      // Associate payment to person_package (always returns a person_package_id)
       const associatedPersonPackageId = await associatePaymentToPersonPackage(
         selectedPersonId,
         paymentDateTimestamp,
         parseFloat(amount)
       )
 
-      // Update payment with associated person_package_id if found
-      if (associatedPersonPackageId) {
-        const updatedPayment = await upsertPayment({
-          id: newPayment.id,
-          person_package_id: associatedPersonPackageId,
-          amount: newPayment.amount,
-          payment_date: newPayment.payment_date,
-          method: newPayment.method,
-          notes: newPayment.notes,
-        })
-        setPayments([updatedPayment, ...payments])
-      } else {
-        setPayments([newPayment, ...payments])
-      }
+      // Update payment with associated person_package_id
+      const updatedPayment = await upsertPayment({
+        id: newPayment.id,
+        person_package_id: associatedPersonPackageId,
+        amount: newPayment.amount,
+        payment_date: newPayment.payment_date,
+        method: newPayment.method,
+        notes: newPayment.notes,
+      })
+      setPayments([updatedPayment, ...payments])
 
       // Reload person packages to reflect status changes
       const updatedPersonPackages = await fetchPersonPackages()
