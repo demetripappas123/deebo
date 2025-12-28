@@ -16,12 +16,19 @@ export interface Contract {
 
 /**
  * Fetch all contracts
+ * Optionally filter by trainer_id
  */
-export async function fetchContracts(): Promise<Contract[]> {
-  const { data, error } = await supabase
+export async function fetchContracts(trainerId?: string | null): Promise<Contract[]> {
+  let query = supabase
     .from('contracts')
     .select('*')
     .order('created_at', { ascending: false })
+
+  if (trainerId) {
+    query = query.eq('trainer_id', trainerId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching contracts:', error)

@@ -2,18 +2,21 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/context/authcontext'
 import { fetchProspects, Prospect } from '@/supabase/fetches/fetchpeople'
 
 export default function DisplayProspects() {
   const router = useRouter()
+  const { user } = useAuth()
   const [prospects, setProspects] = useState<Prospect[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadProspects = async () => {
+      if (!user) return
       try {
-        const data = await fetchProspects()
+        const data = await fetchProspects(user.id)
         setProspects(data)
       } catch (err) {
         console.error(err)
@@ -24,7 +27,7 @@ export default function DisplayProspects() {
     }
 
     loadProspects()
-  }, [])
+  }, [user])
 
   if (loading) return <div className="text-gray-300">Loading prospects...</div>
   if (error) return <div className="text-red-400">{error}</div>

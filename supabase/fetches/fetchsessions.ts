@@ -55,12 +55,19 @@ export interface SessionExerciseWithSets extends SessionExercise {
 
 /**
  * Fetch all sessions
+ * Optionally filter by trainer_id
  */
-export async function fetchSessions(): Promise<Session[]> {
-  const { data, error } = await supabase
+export async function fetchSessions(trainerId?: string | null): Promise<Session[]> {
+  let query = supabase
     .from('sessions')
     .select('*')
     .order('created_at', { ascending: false })
+
+  if (trainerId) {
+    query = query.eq('trainer_id', trainerId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching sessions:', error)

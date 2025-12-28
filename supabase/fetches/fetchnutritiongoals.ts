@@ -14,13 +14,20 @@ export interface NutritionGoal {
 
 /**
  * Fetches all nutrition goals for a specific client.
+ * Optionally filter by trainer_id
  */
-export async function fetchClientNutritionGoals(clientId: string): Promise<NutritionGoal[]> {
-  const { data, error } = await supabase
+export async function fetchClientNutritionGoals(clientId: string, trainerId?: string | null): Promise<NutritionGoal[]> {
+  let query = supabase
     .from('client_nutrition_goals')
     .select('*')
     .eq('client_id', clientId)
     .order('goal_month', { ascending: false })
+
+  if (trainerId) {
+    query = query.eq('trainer_id', trainerId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching client nutrition goals:', error)
@@ -51,6 +58,11 @@ export async function fetchClientNutritionGoalByMonth(
 
   return data || null
 }
+
+
+
+
+
 
 
 

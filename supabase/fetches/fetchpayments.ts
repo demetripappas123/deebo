@@ -11,8 +11,32 @@ export interface Payment {
 
 /**
  * Fetch all payments
+ * Optionally filter by trainer_id (through person_packages)
  */
-export async function fetchPayments(): Promise<Payment[]> {
+export async function fetchPayments(trainerId?: string | null): Promise<Payment[]> {
+  // If trainerId is provided, filter through person_packages
+  if (trainerId) {
+    const { fetchPersonPackages } = await import('./fetchpersonpackages')
+    const personPackages = await fetchPersonPackages(trainerId)
+    const personPackageIds = personPackages.map(pp => pp.id)
+    
+    if (personPackageIds.length === 0) return []
+    
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*')
+      .in('person_package_id', personPackageIds)
+      .order('payment_date', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching payments:', error)
+      throw error
+    }
+
+    return data ?? []
+  }
+  
+  // No trainer filter
   const { data, error } = await supabase
     .from('payments')
     .select('*')

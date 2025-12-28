@@ -8,12 +8,14 @@ import { fetchWeeks, Week } from '@/supabase/fetches/fetchweek'
 import DeleteWeekDialog from '@/modules/programs/deleteweek'
 import DeleteDayDialog from '@/modules/programs/deleteday'
 import { TrashIcon } from '@heroicons/react/24/solid'
+import { Plus } from 'lucide-react'
 import { addDay, updateDay } from '@/supabase/upserts/upsertday'
 import { upsertDayExercises, updateDayExercises, DayExercise } from '@/supabase/upserts/upsertexercises'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
 import { fetchDayExercises, DayExerciseWithName } from '@/supabase/fetches/fetchdayexercises'
 import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import AddDayDialog from '@/modules/programs/adddaydialog'
+import ProgramChat from '@/modules/programs/programchat'
 
 type Program = {
   id: string
@@ -140,7 +142,7 @@ export default function ProgramPage() {
       // 3. Map exercises to DayExercise format
       const mappedExercises: DayExercise[] = payload.exercises
         .filter(ex => ex.name.trim() !== '') // Only include exercises with names
-        .map(ex => {
+        .map((ex, index) => {
           // Find exercise_id by matching name in exercise library
           const exercise = exerciseLibrary.find(e => e.name === ex.name)
           if (!exercise) {
@@ -156,6 +158,7 @@ export default function ProgramPage() {
             rpe: ex.rpe && ex.rpe.trim() ? parseRangeInput(ex.rpe) ?? null : null,
             notes: ex.notes || '',
             weight_used: ex.weight ?? null,
+            exercise_number: index + 1, // Set exercise_number based on array position
           }
         })
 
@@ -184,29 +187,41 @@ export default function ProgramPage() {
   if (!program) return <p className="text-gray-300">Program not found.</p>
 
   return (
-    <div className="p-6 space-y-4 bg-[#111111] min-h-screen text-white">
-      <button
-        onClick={() => router.back()}
-        className="px-3 py-1 bg-[#333333] rounded-md hover:bg-[#404040]"
-      >
-        ← Back
-      </button>
-
-      <h1 className="text-2xl font-bold">{program.name}</h1>
-      {program.description && (
-        <p className="text-gray-300">{program.description}</p>
-      )}
-
-      <div className="flex justify-end">
+    <div className="p-6 bg-[#111111] min-h-screen text-white">
+      {/* Header Section */}
+      <div className="space-y-4 mb-6">
         <button
-          onClick={handleAddWeek}
-          className="px-4 py-2 bg-orange-500 rounded-md hover:bg-orange-600 cursor-pointer"
+          onClick={() => router.back()}
+          className="px-3 py-1 bg-[#333333] rounded-md hover:bg-[#404040]"
         >
-          Add Week
+          ← Back
         </button>
+
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">{program.name}</h1>
+            {program.description && (
+              <p className="text-gray-300">{program.description}</p>
+            )}
+          </div>
+          
+          <div className="flex justify-start">
+            <button
+              onClick={handleAddWeek}
+              className="flex items-center gap-2 px-4 py-2 bg-orange-500 rounded-md hover:bg-orange-600 cursor-pointer text-white"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Week</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-6 space-y-4">
+      {/* Main Content Area - Program and Chat side by side */}
+      <div className="flex gap-6 h-[calc(100vh-12rem)]">
+        {/* Left side - Program content */}
+        <div className="flex-1 space-y-4 overflow-y-auto">
+          <div className="space-y-4">
         {weeks.length === 0 && (
           <p className="text-gray-300">No weeks yet. Add one!</p>
         )}
@@ -312,6 +327,17 @@ export default function ProgramPage() {
             </div>
           </div>
         ))}
+          </div>
+        </div>
+
+        {/* Right side - Chat UI */}
+        <div className="w-96 flex-shrink-0">
+          <ProgramChat 
+            programId={program.id} 
+            programName={program.name}
+            onProgramUpdated={refreshWeeks}
+          />
+        </div>
       </div>
     </div>
   )

@@ -10,6 +10,7 @@ export type DayExercise = {
   rpe: string | null // numrange in PostgreSQL format
   notes: string
   weight_used?: number | null
+  exercise_number?: number | null // Position/order of exercise in the day
 }
 
 /**
@@ -23,7 +24,7 @@ export async function upsertDayExercises(
 
   try {
     // Map exercises to ensure proper format and handle nulls
-    const formattedExercises = exercises.map(ex => ({
+    const formattedExercises = exercises.map((ex, index) => ({
       day_id: ex.day_id,
       exercise_def_id: ex.exercise_def_id,
       sets: ex.sets || null, // Convert empty string to null
@@ -32,6 +33,7 @@ export async function upsertDayExercises(
       rpe: ex.rpe || null, // Convert empty string to null
       notes: ex.notes || '',
       weight_used: ex.weight_used ?? null,
+      exercise_number: ex.exercise_number ?? index + 1, // Use provided exercise_number or default to index + 1
     }))
 
     const { data, error } = await supabase
@@ -94,7 +96,7 @@ export async function updateDayExercises(
     const toUpdate: any[] = []
     const toInsert: DayExercise[] = []
 
-    exercises.forEach(ex => {
+    exercises.forEach((ex, index) => {
       const formatted = {
         day_id: ex.day_id,
         exercise_def_id: ex.exercise_def_id,
@@ -104,6 +106,7 @@ export async function updateDayExercises(
         rpe: ex.rpe || null, // Convert empty string to null
         notes: ex.notes || '',
         weight_used: ex.weight_used ?? null,
+        exercise_number: ex.exercise_number ?? index + 1, // Use provided exercise_number or default to index + 1
       }
 
       // Check if this exercise already exists
@@ -141,6 +144,7 @@ export async function updateDayExercises(
             rpe: ex.rpe,
             notes: ex.notes,
             weight_used: ex.weight_used,
+            exercise_number: ex.exercise_number,
           })
           .eq('day_id', dayId)
           .eq('exercise_def_id', ex.exercise_def_id)

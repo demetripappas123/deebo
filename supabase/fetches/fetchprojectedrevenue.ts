@@ -14,7 +14,7 @@ import { fetchPaymentsByPersonId, Payment } from './fetchpayments'
  * 3. Include past payments for the current month when applicable
  * 4. Sum all clients to estimate total MRR
  */
-export async function fetchProjectedRevenue(): Promise<number> {
+export async function fetchProjectedRevenue(trainerId?: string | null): Promise<number> {
   // Get current date info
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -23,7 +23,7 @@ export async function fetchProjectedRevenue(): Promise<number> {
   const totalDaysInMonth = endOfMonth.getDate()
 
   // Fetch all clients
-  const clients = await fetchPeople({ isClient: true })
+  const clients = await fetchPeople({ isClient: true, trainerId })
   if (clients.length === 0) return 0
 
   // Fetch all packages for lookup

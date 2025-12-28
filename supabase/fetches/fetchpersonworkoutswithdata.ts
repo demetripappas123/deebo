@@ -31,14 +31,20 @@ export interface WorkoutWithData extends Workout {
  * Efficiently fetch all workouts for a person with all related data (sessions, exercises, sets)
  * Uses batch queries instead of sequential queries for better performance
  */
-export async function fetchPersonWorkoutsWithData(personId: string): Promise<WorkoutWithData[]> {
+export async function fetchPersonWorkoutsWithData(personId: string, trainerId?: string | null): Promise<WorkoutWithData[]> {
   // Step 1: Fetch all completed workouts for this person
   // First, let's check all workouts to see what we have
-  const { data: allWorkouts, error: allWorkoutsError } = await supabase
+  let workoutsQuery = supabase
     .from('workouts')
     .select('*')
     .eq('person_id', personId)
     .order('created_at', { ascending: false })
+
+  if (trainerId) {
+    workoutsQuery = workoutsQuery.eq('trainer_id', trainerId)
+  }
+
+  const { data: allWorkouts, error: allWorkoutsError } = await workoutsQuery
 
   console.log('All workouts for person:', personId, allWorkouts?.length, allWorkouts)
 

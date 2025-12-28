@@ -14,12 +14,19 @@ export interface PersonPackage {
 
 /**
  * Fetch all person_packages
+ * Optionally filter by trainer_id
  */
-export async function fetchPersonPackages(): Promise<PersonPackage[]> {
-  const { data, error } = await supabase
+export async function fetchPersonPackages(trainerId?: string | null): Promise<PersonPackage[]> {
+  let query = supabase
     .from('person_packages')
     .select('*')
     .order('created_at', { ascending: false })
+
+  if (trainerId) {
+    query = query.eq('trainer_id', trainerId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching person_packages:', error)
@@ -67,4 +74,8 @@ export async function fetchPersonPackageById(personPackageId: string): Promise<P
 
   return data
 }
+
+
+
+
 

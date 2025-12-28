@@ -1,8 +1,12 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, ReactNode } from "react";
 import { upsertProgram, Program } from "@/supabase/upserts/upsertprogram";
 
-export default function AddProgramDialog() {
+type AddProgramDialogProps = {
+  children?: ReactNode;
+}
+
+export default function AddProgramDialog({ children }: AddProgramDialogProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [programName, setProgramName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -30,12 +34,18 @@ export default function AddProgramDialog() {
 
   return (
     <>
-      <button
-        onClick={() => setIsDialogOpen(true)}
-        className="px-4 py-2 bg-orange-500 text-white font-semibold rounded-md hover:bg-orange-600 transition-colors cursor-pointer"
-      >
-        Add Program
-      </button>
+      {children ? (
+        <div onClick={() => setIsDialogOpen(true)} className="cursor-pointer">
+          {children}
+        </div>
+      ) : (
+        <button
+          onClick={() => setIsDialogOpen(true)}
+          className="px-4 py-2 bg-orange-500 text-white font-semibold rounded-md hover:bg-orange-600 transition-colors cursor-pointer"
+        >
+          Add Program
+        </button>
+      )}
 
       {isDialogOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

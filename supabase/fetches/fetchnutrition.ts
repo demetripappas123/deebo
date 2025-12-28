@@ -14,12 +14,19 @@ export interface NutritionEntry {
 
 /**
  * Fetches all nutrition entries from the "nutrition_entries" table.
+ * Optionally filter by trainer_id
  */
-export async function fetchNutritionEntries(): Promise<NutritionEntry[]> {
-  const { data, error } = await supabase
+export async function fetchNutritionEntries(trainerId?: string | null): Promise<NutritionEntry[]> {
+  let query = supabase
     .from('nutrition_entries')
     .select('*')
     .order('entry_date', { ascending: false })
+
+  if (trainerId) {
+    query = query.eq('trainer_id', trainerId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching nutrition entries:', error)
@@ -31,13 +38,20 @@ export async function fetchNutritionEntries(): Promise<NutritionEntry[]> {
 
 /**
  * Fetches nutrition entries for a specific client.
+ * Optionally filter by trainer_id
  */
-export async function fetchClientNutritionEntries(clientId: string): Promise<NutritionEntry[]> {
-  const { data, error } = await supabase
+export async function fetchClientNutritionEntries(clientId: string, trainerId?: string | null): Promise<NutritionEntry[]> {
+  let query = supabase
     .from('nutrition_entries')
     .select('*')
     .eq('client_id', clientId)
     .order('entry_date', { ascending: false })
+
+  if (trainerId) {
+    query = query.eq('trainer_id', trainerId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching client nutrition entries:', error)

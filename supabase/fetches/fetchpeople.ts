@@ -17,15 +17,20 @@ export type Prospect = Person
 
 /**
  * Fetches all people from the "people" table.
- * Optionally filter by converted_at status.
+ * Optionally filter by converted_at status and trainer_id.
  */
 export async function fetchPeople(options?: {
   isClient?: boolean // if true, only clients; if false, only prospects; if undefined, all
+  trainerId?: string | null // filter by trainer_id
 }): Promise<Person[]> {
   let query = supabase
     .from('people')
     .select('*')
     .order('created_at', { ascending: false })
+
+  if (options?.trainerId) {
+    query = query.eq('trainer_id', options.trainerId)
+  }
 
   if (options?.isClient === true) {
     query = query.not('converted_at', 'is', null)
@@ -57,15 +62,15 @@ export async function fetchPeople(options?: {
 /**
  * Fetches all clients from the "people" table where converted_at is not null.
  */
-export async function fetchClients(): Promise<Client[]> {
-  return fetchPeople({ isClient: true })
+export async function fetchClients(trainerId?: string | null): Promise<Client[]> {
+  return fetchPeople({ isClient: true, trainerId })
 }
 
 /**
  * Fetches all prospects from the "people" table where converted_at is null.
  */
-export async function fetchProspects(): Promise<Prospect[]> {
-  return fetchPeople({ isClient: false })
+export async function fetchProspects(trainerId?: string | null): Promise<Prospect[]> {
+  return fetchPeople({ isClient: false, trainerId })
 }
 
 /**

@@ -11,12 +11,19 @@ export interface Workout {
 
 /**
  * Fetch all workouts
+ * Optionally filter by trainer_id
  */
-export async function fetchWorkouts(): Promise<Workout[]> {
-  const { data, error } = await supabase
+export async function fetchWorkouts(trainerId?: string | null): Promise<Workout[]> {
+  let query = supabase
     .from('workouts')
     .select('*')
     .order('created_at', { ascending: false })
+
+  if (trainerId) {
+    query = query.eq('trainer_id', trainerId)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching workouts:', error)

@@ -16,14 +16,18 @@ export default function HourlyAverageChart({ hourlyAverage }: HourlyAverageChart
 
   return (
     <div className="w-full h-full flex flex-col p-4">
-      <h3 className="text-lg font-semibold text-white mb-4">Hourly Average</h3>
+      <h3 className="text-lg font-semibold text-white mb-4">Hourly Rate</h3>
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <div className="text-4xl font-bold text-blue-500">{formatCurrency(hourlyAverage)}</div>
-          <div className="text-xs text-gray-400 mt-2">Revenue per hour</div>
+          <div className="text-xs text-gray-400 mt-2">Average hourly rate</div>
         </div>
       </div>
     </div>
   )
 }
+
+
+
+
 

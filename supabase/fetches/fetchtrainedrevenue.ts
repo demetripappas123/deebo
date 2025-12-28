@@ -13,15 +13,15 @@ import { fetchPackages } from './fetchpackages'
  * 5. Sum all unit_costs
  * If person_package_id is null, add 0 for that session
  */
-export async function fetchTrainedRevenue(): Promise<number> {
+export async function fetchTrainedRevenue(trainerId?: string | null): Promise<number> {
   // Fetch all client sessions
-  const sessions = await fetchSessions()
+  const sessions = await fetchSessions(trainerId)
   const clientSessions = sessions.filter(s => s.type === 'Client Session')
   
   if (clientSessions.length === 0) return 0
   
   // Fetch all person_packages and packages to create lookup maps
-  const personPackages = await fetchPersonPackages()
+  const personPackages = await fetchPersonPackages(trainerId)
   const packages = await fetchPackages()
   
   // Create lookup maps

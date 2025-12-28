@@ -10,10 +10,13 @@ export type DayExerciseWithName = {
   rpe: string | null // numrange in PostgreSQL format
   notes: string
   weight_used: number | null
+  exercise_number: number | null
 }
 
-export async function fetchDayExercises(dayId: string): Promise<DayExerciseWithName[]> {
+export async function fetchDayExercises(dayId: string, trainerId?: string | null): Promise<DayExerciseWithName[]> {
   try {
+    // Note: program_exercises don't have trainer_id set, so we don't filter by it
+    // Exercises are already filtered by being associated with days that belong to weeks filtered by trainer_id
     const { data, error } = await supabase
       .from('program_exercises')
       .select(`
@@ -25,12 +28,14 @@ export async function fetchDayExercises(dayId: string): Promise<DayExerciseWithN
         rpe,
         notes,
         weight_used,
+        exercise_number,
         exercise_library:exercise_def_id (
           id,
           name
         )
       `)
       .eq('day_id', dayId)
+      .order('exercise_number', { ascending: true, nullsFirst: false })
       .order('exercise_def_id', { ascending: true })
 
     if (error) {
@@ -57,6 +62,7 @@ export async function fetchDayExercises(dayId: string): Promise<DayExerciseWithN
       rpe: ex.rpe,
       notes: ex.notes || '',
       weight_used: ex.weight_used,
+      exercise_number: ex.exercise_number,
     }))
 
     return exercises

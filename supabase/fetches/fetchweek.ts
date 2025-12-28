@@ -16,14 +16,20 @@ export type Week = {
   days: Day[]
 }
 
-export async function fetchWeeks(programId: string): Promise<Week[]> {
+export async function fetchWeeks(programId: string, trainerId?: string | null): Promise<Week[]> {
   try {
     // Fetch weeks first
-    const { data: weeksData, error: weeksError } = await supabase
+    let weeksQuery = supabase
       .from('program_weeks')
       .select('*')
       .eq('program_id', programId)
       .order('number', { ascending: true })
+
+    if (trainerId) {
+      weeksQuery = weeksQuery.eq('trainer_id', trainerId)
+    }
+
+    const { data: weeksData, error: weeksError } = await weeksQuery
 
     if (weeksError) {
       console.error('fetchWeeks supabase error (weeks):', weeksError)
@@ -42,11 +48,15 @@ export async function fetchWeeks(programId: string): Promise<Week[]> {
     const weekIds = weeksData.map(week => week.id)
 
     // Fetch all days for these weeks
+    // Note: program_days don't have trainer_id set, so we don't filter by it
+    // Days are already filtered by being associated with weeks that are filtered by trainer_id
     const { data: daysData, error: daysError } = await supabase
       .from('program_days')
       .select('*')
       .in('week_id', weekIds)
-      .order('week_id', { ascending: true })
+      .order('day_number', { ascending: true })
+    
+    console.log('Days query result:', { daysData, daysError, weekIds, weekIdsLength: weekIds.length })
 
     if (daysError) {
       console.error('fetchWeeks supabase error (days):', daysError)
@@ -59,10 +69,17 @@ export async function fetchWeeks(programId: string): Promise<Week[]> {
       // Continue even if days fetch fails, just return weeks with empty days arrays
     }
 
-    // Group days by week_id
+    // Group days by week_id and sort by day_number within each week
     const daysByWeekId = new Map<string, Day[]>()
     if (daysData) {
-      daysData.forEach(day => {
+      // Sort days by week_id first, then by day_number
+      const sortedDays = [...daysData].sort((a, b) => {
+        const weekCompare = a.week_id.localeCompare(b.week_id)
+        if (weekCompare !== 0) return weekCompare
+        return (a.day_number || 0) - (b.day_number || 0)
+      })
+
+      sortedDays.forEach(day => {
         const weekId = day.week_id
         if (!daysByWeekId.has(weekId)) {
           daysByWeekId.set(weekId, [])

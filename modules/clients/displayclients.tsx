@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useImperativeHandle, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/context/authcontext'
 import { fetchClients, Client } from '@/supabase/fetches/fetchpeople'
 
 export interface DisplayClientsRef {
@@ -10,6 +11,7 @@ export interface DisplayClientsRef {
 
 const DisplayClients = forwardRef<DisplayClientsRef>((props, ref) => {
   const router = useRouter()
+  const { user } = useAuth()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -17,7 +19,7 @@ const DisplayClients = forwardRef<DisplayClientsRef>((props, ref) => {
   const loadClients = async () => {
     setLoading(true)
     try {
-      const data = await fetchClients()
+      const data = await fetchClients(user?.id || null)
       setClients(data)
       setError(null)
     } catch (err) {
@@ -33,8 +35,11 @@ const DisplayClients = forwardRef<DisplayClientsRef>((props, ref) => {
   }))
 
   useEffect(() => {
-    loadClients()
-  }, [])
+    if (user) {
+      loadClients()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   if (loading) return <div className="text-gray-300">Loading clients...</div>
   if (error) return <div className="text-red-400">{error}</div>

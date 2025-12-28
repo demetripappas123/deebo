@@ -1,10 +1,12 @@
 import { supabase } from '../supabaseClient'
+import { fetchPersonPackages } from './fetchpersonpackages'
 
 /**
  * Calculate MTD (Month To Date) revenue
  * Sum of all payments from the current month
+ * Optionally filter by trainer_id (through person_packages)
  */
-export async function fetchTotalRevenue(): Promise<number> {
+export async function fetchTotalRevenue(trainerId?: string | null): Promise<number> {
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
@@ -13,6 +15,40 @@ export async function fetchTotalRevenue(): Promise<number> {
   const startDate = startOfMonth.toISOString()
   const endDate = endOfMonth.toISOString()
   
+  // If trainerId is provided, we need to filter through person_packages
+  if (trainerId) {
+    // First get person_packages for this trainer
+    const personPackages = await fetchPersonPackages(trainerId)
+    const personPackageIds = personPackages.map(pp => pp.id)
+    
+    if (personPackageIds.length === 0) return 0
+    
+    // Then get payments for those person_packages
+    const { data, error } = await supabase
+      .from('payments')
+      .select('amount')
+      .in('person_package_id', personPackageIds)
+      .gte('payment_date', startDate)
+      .lte('payment_date', endDate)
+    
+    if (error) {
+      console.error('Error fetching MTD revenue:', error)
+      throw error
+    }
+
+    if (!data || data.length === 0) return 0
+
+    // Sum all payment amounts
+    const totalRevenue = data.reduce((sum, payment) => {
+      const amount = Number(payment.amount) || 0
+      if (isNaN(amount)) return sum
+      return sum + amount
+    }, 0)
+
+    return totalRevenue || 0
+  }
+  
+  // No trainer filter - get all payments
   const { data, error } = await supabase
     .from('payments')
     .select('amount')

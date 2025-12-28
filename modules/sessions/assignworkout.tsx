@@ -1,13 +1,18 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import EditWorkout from './editworkout'
 import { upsertSession, upsertSessionExercise, upsertExerciseSet, upsertWorkoutExercises, upsertExerciseSets } from '@/supabase/upserts/upsertsession'
 import { upsertWorkout } from '@/supabase/upserts/upsertworkout'
 import { SessionType } from '@/supabase/fetches/fetchsessions'
-import { supabase } from '@/supabase/supabaseClient'
+import { fetchPrograms } from '@/supabase/fetches/fetchprograms'
+import { Program } from '@/supabase/upserts/upsertprogram'
+import { fetchWeeks, Week, Day } from '@/supabase/fetches/fetchweek'
+import { fetchDayExercises } from '@/supabase/fetches/fetchdayexercises'
+import { formatRangeDisplay } from '@/supabase/utils/rangeparse'
+import { useAuth } from '@/context/authcontext'
 
 type AssignWorkoutProps = {
   open: boolean
@@ -26,8 +31,15 @@ export default function AssignWorkout({
   sessionType,
   personId
 }: AssignWorkoutProps) {
+  const { user } = useAuth()
   const [selectedOption, setSelectedOption] = useState<WorkoutOption>(null)
   const [showWorkoutEditor, setShowWorkoutEditor] = useState(false)
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null)
+  const [weeks, setWeeks] = useState<Week[]>([])
+  const [selectedDayId, setSelectedDayId] = useState<string | null>(null)
+  const [loadingPrograms, setLoadingPrograms] = useState(false)
+  const [loadingDays, setLoadingDays] = useState(false)
 
   const handleOptionSelect = (option: WorkoutOption) => {
     if (option === 'create') {
@@ -41,8 +53,188 @@ export default function AssignWorkout({
 
   const handleCancel = () => {
     setSelectedOption(null)
+    setSelectedProgramId(null)
+    setWeeks([])
+    setSelectedDayId(null)
     onOpenChange(false)
   }
+
+  // Fetch programs when 'program' option is selected
+  useEffect(() => {
+    if (selectedOption === 'program' && open && user?.id) {
+      const loadPrograms = async () => {
+        setLoadingPrograms(true)
+        try {
+          const fetchedPrograms = await fetchPrograms(user.id)
+          setPrograms(fetchedPrograms)
+        } catch (error) {
+          console.error('Error fetching programs:', error)
+          setPrograms([])
+        } finally {
+          setLoadingPrograms(false)
+        }
+      }
+      loadPrograms()
+    }
+  }, [selectedOption, open, user?.id])
+
+  // Fetch weeks when a program is selected
+  useEffect(() => {
+    if (selectedProgramId && user?.id) {
+      const loadWeeks = async () => {
+        setLoadingDays(true)
+        try {
+          const fetchedWeeks = await fetchWeeks(selectedProgramId, user.id)
+          console.log('Fetched weeks:', fetchedWeeks)
+          console.log('Total days across all weeks:', fetchedWeeks.reduce((acc, week) => acc + week.days.length, 0))
+          setWeeks(fetchedWeeks)
+        } catch (error) {
+          console.error('Error fetching weeks:', error)
+          setWeeks([])
+        } finally {
+          setLoadingDays(false)
+        }
+      }
+      loadWeeks()
+    } else {
+      setWeeks([])
+      setSelectedDayId(null)
+    }
+  }, [selectedProgramId, user?.id])
+
+  // Handle program day selection and create workout
+  const handleAssignProgramDay = async () => {
+    if (!selectedDayId || !personId) {
+      alert('Please select a day')
+      return
+    }
+
+    try {
+      setLoadingDays(true)
+
+      // Fetch exercises for the selected day
+      const dayExercises = await fetchDayExercises(selectedDayId, user?.id || null)
+
+      // Create workout with day_id
+      const workout = await upsertWorkout({
+        person_id: personId,
+        day_id: selectedDayId,
+      })
+
+      // Update session with workout_id
+      await upsertSession({
+        id: sessionId,
+        person_id: personId,
+        trainer_id: user?.id || null,
+        type: sessionType || 'Client Session',
+        workout_id: workout.id,
+        start_time: null,
+        end_time: null,
+        converted: false,
+      })
+
+      // Create workout exercises from day exercises
+      if (dayExercises.length > 0) {
+        const exerciseData = dayExercises.map((ex, index) => ({
+          exercise_id: ex.exercise_def_id,
+          position: index,
+          notes: ex.notes || null,
+        }))
+
+        const createdExercises = await upsertWorkoutExercises(workout.id, exerciseData)
+
+        // Create sets for each exercise based on the sets range from day exercise
+        for (let i = 0; i < dayExercises.length; i++) {
+          const dayExercise = dayExercises[i]
+          const createdExercise = createdExercises[i]
+          
+          if (createdExercise && createdExercise.id) {
+            // Parse the sets range to determine number of sets
+            // Sets range is in PostgreSQL numrange format like "[3,4]" or "(3,4]" etc
+            let numSets = 3 // Default to 3 sets if no range specified
+            
+            if (dayExercise.sets) {
+              // Parse the range using the utility function to get display format (e.g., "3-4" or "3")
+              const formattedRange = formatRangeDisplay(dayExercise.sets)
+              
+              if (formattedRange) {
+                // If it's a range like "3-4", take the upper bound
+                if (formattedRange.includes('-')) {
+                  const parts = formattedRange.split('-')
+                  const upper = parseInt(parts[1]?.trim() || '', 10)
+                  if (!isNaN(upper)) {
+                    numSets = upper
+                  }
+                } else {
+                  // Single number like "3"
+                  const num = parseInt(formattedRange.trim(), 10)
+                  if (!isNaN(num)) {
+                    numSets = num
+                  }
+                }
+              }
+            }
+
+            // Parse reps, rir, and rpe ranges to get default values for sets
+            // Extract lower bound from ranges as default values
+            const getDefaultFromRange = (range: string | null | undefined): number | null => {
+              if (!range) return null
+              const formatted = formatRangeDisplay(range)
+              if (!formatted) return null
+              
+              // Get the first number (lower bound) from range like "8-12" -> 8
+              if (formatted.includes('-')) {
+                const parts = formatted.split('-')
+                const lower = parseInt(parts[0]?.trim() || '', 10)
+                return isNaN(lower) ? null : lower
+              } else {
+                // Single number
+                const num = parseInt(formatted.trim(), 10)
+                return isNaN(num) ? null : num
+              }
+            }
+
+            const defaultReps = getDefaultFromRange(dayExercise.reps)
+            const defaultRIR = getDefaultFromRange(dayExercise.rir)
+            const defaultRPE = getDefaultFromRange(dayExercise.rpe)
+            const defaultWeight = dayExercise.weight_used
+
+            // Create sets with default values from day exercise ranges
+            const setData = Array.from({ length: numSets }, (_, index) => ({
+              set_number: index + 1,
+              weight: defaultWeight,
+              reps: defaultReps,
+              rir: defaultRIR,
+              rpe: defaultRPE,
+              notes: dayExercise.notes || null,
+            }))
+
+            // Create the sets
+            await upsertExerciseSets(createdExercise.id, setData)
+          }
+        }
+      }
+
+      console.log('Program day workout assigned successfully!')
+      handleCancel()
+      // Trigger a reload by closing and reopening if needed
+      onOpenChange(false)
+    } catch (error) {
+      console.error('Error assigning program day workout:', error)
+      alert('Error assigning workout. Please try again.')
+    } finally {
+      setLoadingDays(false)
+    }
+  }
+
+  // Get all days from all weeks
+  const allDays: (Day & { programId: string; weekNumber: number })[] = weeks.flatMap(week =>
+    week.days.map(day => ({
+      ...day,
+      programId: week.program_id,
+      weekNumber: week.number,
+    }))
+  )
 
   const handleWorkoutSave = async (data: {
     exercises: any[]
@@ -158,19 +350,6 @@ export default function AssignWorkout({
                   </span>
                 </div>
               </Button>
-
-              <Button
-                onClick={() => handleOptionSelect('existing')}
-                variant="outline"
-                className="w-full justify-start text-left h-auto bg-[#111111] hover:bg-[#1a1a1a] text-white border-[#2a2a2a] cursor-pointer p-4"
-              >
-                <div className="flex flex-col items-start w-full">
-                  <span className="font-semibold text-white text-base">Choose from Existing Workouts</span>
-                  <span className="text-xs text-gray-400 mt-1.5">
-                    Select from previously created workouts
-                  </span>
-                </div>
-              </Button>
             </div>
           ) : (
             // Selected option view
@@ -201,23 +380,90 @@ export default function AssignWorkout({
                 <div className="space-y-4">
                   <div className="bg-[#111111] border border-[#2a2a2a] rounded-md p-4">
                     <h3 className="text-white font-semibold mb-4">Select from Program</h3>
-                    <div className="space-y-3 text-gray-400 text-sm">
-                      <p>Program selection interface will appear here.</p>
-                      <p className="text-xs italic">(Functionality to be implemented)</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+                    
+                    {loadingPrograms ? (
+                      <div className="text-gray-400 text-sm">Loading programs...</div>
+                    ) : programs.length === 0 ? (
+                      <div className="text-gray-400 text-sm">
+                        <p>No programs available.</p>
+                        <p className="text-xs mt-2">Create a program first to assign workouts from it.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Program Selection */}
+                        {!selectedProgramId ? (
+                          <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                              Select a Program:
+                            </label>
+                            <div className="space-y-2 max-h-60 overflow-y-auto">
+                              {programs.map((program) => (
+                                <Button
+                                  key={program.id}
+                                  onClick={() => setSelectedProgramId(program.id)}
+                                  variant="outline"
+                                  className="w-full justify-start text-left h-auto bg-[#1a1a1a] hover:bg-[#262626] text-white border-[#2a2a2a] cursor-pointer p-3"
+                                >
+                                  <span className="font-medium">{program.name}</span>
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {/* Back to program selection */}
+                            <Button
+                              onClick={() => {
+                                setSelectedProgramId(null)
+                                setSelectedDayId(null)
+                              }}
+                              variant="ghost"
+                              className="text-gray-400 hover:text-white cursor-pointer p-0 h-auto text-sm"
+                            >
+                              ← Back to Programs
+                            </Button>
 
-              {/* Choose from Existing Workouts */}
-              {selectedOption === 'existing' && (
-                <div className="space-y-4">
-                  <div className="bg-[#111111] border border-[#2a2a2a] rounded-md p-4">
-                    <h3 className="text-white font-semibold mb-4">Select Existing Workout</h3>
-                    <div className="space-y-3 text-gray-400 text-sm">
-                      <p>Existing workouts list will appear here.</p>
-                      <p className="text-xs italic">(Functionality to be implemented)</p>
-                    </div>
+                            {/* Day Selection */}
+                            {loadingDays ? (
+                              <div className="text-gray-400 text-sm">Loading days...</div>
+                            ) : loadingDays ? (
+                              <div className="text-gray-400 text-sm">Loading days...</div>
+                            ) : allDays.length === 0 ? (
+                              <div className="text-gray-400 text-sm">
+                                <p>No days available in this program.</p>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                  Select a Day:
+                                </label>
+                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                  {allDays.map((day) => (
+                                    <Button
+                                      key={day.id}
+                                      onClick={() => setSelectedDayId(day.id)}
+                                      variant={selectedDayId === day.id ? "default" : "outline"}
+                                      className={`w-full justify-start text-left h-auto cursor-pointer p-3 ${
+                                        selectedDayId === day.id
+                                          ? 'bg-[#f97316] hover:bg-[#ea6820] text-white'
+                                          : 'bg-[#1a1a1a] hover:bg-[#262626] text-white border-[#2a2a2a]'
+                                      }`}
+                                    >
+                                      <div className="flex flex-col items-start w-full">
+                                        <span className="font-medium">{day.name}</span>
+                                        <span className="text-xs opacity-75 mt-0.5">
+                                          Week {day.weekNumber}
+                                        </span>
+                                      </div>
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -228,19 +474,31 @@ export default function AssignWorkout({
                   onClick={handleCancel}
                   variant="outline"
                   className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+                  disabled={loadingDays}
                 >
                   Cancel
                 </Button>
-                <Button
-                  onClick={() => {
-                    // Placeholder for assign action
-                    console.log('Assign workout:', selectedOption)
-                    handleCancel()
-                  }}
-                  className="bg-[#f97316] hover:bg-[#ea6820] text-white cursor-pointer"
-                >
-                  Assign Workout
-                </Button>
+                {selectedOption === 'program' && selectedDayId ? (
+                  <Button
+                    onClick={handleAssignProgramDay}
+                    className="bg-[#f97316] hover:bg-[#ea6820] text-white cursor-pointer"
+                    disabled={loadingDays}
+                  >
+                    {loadingDays ? 'Assigning...' : 'Assign Workout'}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      // Placeholder for other assign actions
+                      console.log('Assign workout:', selectedOption)
+                      handleCancel()
+                    }}
+                    className="bg-[#f97316] hover:bg-[#ea6820] text-white cursor-pointer"
+                    disabled={selectedOption === 'program' && !selectedDayId}
+                  >
+                    Assign Workout
+                  </Button>
+                )}
               </div>
             </div>
           )}

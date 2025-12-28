@@ -2,20 +2,23 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/context/authcontext'
 import { fetchPrograms } from '@/supabase/fetches/fetchprograms'
 import { Program } from '@/supabase/upserts/upsertprogram'
 import DeleteProgramDialog from './deleteprogram'
 import { TrashIcon } from '@heroicons/react/24/solid'
 
 export default function ShowPrograms() {
+  const { user } = useAuth()
   const [programs, setPrograms] = useState<Program[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   const refreshPrograms = async () => {
+    if (!user) return
     setLoading(true)
     try {
-      const data = await fetchPrograms()
+      const data = await fetchPrograms(user.id)
       setPrograms(data)
     } catch (err) {
       console.error('Failed to fetch programs:', err)
@@ -26,7 +29,7 @@ export default function ShowPrograms() {
 
   useEffect(() => {
     refreshPrograms()
-  }, [])
+  }, [user])
 
   if (loading) return <p className="text-gray-300">Loading programs...</p>
   if (programs.length === 0) return <p className="text-gray-300">No programs found.</p>
