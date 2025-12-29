@@ -14,15 +14,16 @@ import { fetchPackages } from './fetchpackages'
  * If person_package_id is null, add 0 for that session
  */
 export async function fetchTrainedRevenue(trainerId?: string | null): Promise<number> {
-  // Fetch all client sessions
-  const sessions = await fetchSessions(trainerId)
+  // Batch fetch sessions, person packages, and packages in parallel
+  const [sessions, personPackages, packages] = await Promise.all([
+    fetchSessions(trainerId),
+    fetchPersonPackages(trainerId),
+    fetchPackages(),
+  ])
+  
   const clientSessions = sessions.filter(s => s.type === 'Client Session')
   
   if (clientSessions.length === 0) return 0
-  
-  // Fetch all person_packages and packages to create lookup maps
-  const personPackages = await fetchPersonPackages(trainerId)
-  const packages = await fetchPackages()
   
   // Create lookup maps
   const personPackageMap = new Map(personPackages.map(pp => [pp.id, pp]))

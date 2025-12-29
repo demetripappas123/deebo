@@ -46,7 +46,12 @@ export default function ConversionPage() {
       }
 
       try {
-        const personData = await fetchPersonById(id)
+        // Batch fetch person and packages in parallel
+        const [personData, packagesData] = await Promise.all([
+          fetchPersonById(id),
+          fetchPackages(),
+        ])
+
         if (!personData) {
           setError('Person not found')
           setLoading(false)
@@ -61,9 +66,6 @@ export default function ConversionPage() {
         }
 
         setPerson(personData)
-        
-        // Load existing packages
-        const packagesData = await fetchPackages()
         setPackages(packagesData)
       } catch (err) {
         console.error('Error loading person:', err)

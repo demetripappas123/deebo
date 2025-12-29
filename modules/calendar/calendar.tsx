@@ -18,9 +18,12 @@ export default function Calendar() {
 
   useEffect(() => {
     const loadSessions = async () => {
-      const sessions = await fetchSessions()
-      const clients = await fetchClients()
-      const prospects = await fetchProspects()
+      // Batch fetch all data in parallel
+      const [sessions, clients, prospects] = await Promise.all([
+        fetchSessions(),
+        fetchClients(),
+        fetchProspects(),
+      ])
       
       // Create a map for quick lookup
       const clientMap = new Map(clients.map(c => [c.id, c.name]))

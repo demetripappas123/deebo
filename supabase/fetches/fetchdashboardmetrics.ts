@@ -90,7 +90,12 @@ async function calculateRevenue(trainerId?: string | null): Promise<number> {
  * 4. Average all session hourly rates
  */
 async function calculateHourlyAverage(trainerId?: string | null): Promise<number> {
-  const sessions = await fetchSessions(trainerId)
+  // Batch fetch sessions, person packages, and packages in parallel
+  const [sessions, personPackages, packages] = await Promise.all([
+    fetchSessions(trainerId),
+    fetchPersonPackages(trainerId),
+    fetchPackages(),
+  ])
   
   console.log('calculateHourlyAverage - Total sessions:', sessions.length)
   console.log('calculateHourlyAverage - Trainer ID:', trainerId)
@@ -111,10 +116,6 @@ async function calculateHourlyAverage(trainerId?: string | null): Promise<number
     console.log('calculateHourlyAverage - No relevant sessions found')
     return 0
   }
-  
-  // Fetch person packages and packages for lookup
-  const personPackages = await fetchPersonPackages(trainerId)
-  const packages = await fetchPackages()
   
   console.log('calculateHourlyAverage - Person packages:', personPackages.length)
   console.log('calculateHourlyAverage - Packages:', packages.length)

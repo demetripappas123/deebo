@@ -60,11 +60,14 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
   // Load clients, prospects, and packages
   useEffect(() => {
     const loadPeople = async () => {
-      const clientsData = await fetchClients()
+      // Batch fetch all data in parallel
+      const [clientsData, prospectsData, packagesData] = await Promise.all([
+        fetchClients(),
+        fetchProspects(),
+        fetchPackages(),
+      ])
       setClients(clientsData)
-      const prospectsData = await fetchProspects()
       setProspects(prospectsData)
-      const packagesData = await fetchPackages()
       setPackages(packagesData)
     }
     loadPeople()

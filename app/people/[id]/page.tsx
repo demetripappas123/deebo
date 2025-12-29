@@ -4,11 +4,11 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/supabase/supabaseClient'
 import { Person } from '@/supabase/fetches/fetchpeople'
-import { fetchClientNutritionEntries, NutritionEntry } from '@/supabase/fetches/fetchnutrition'
+import { NutritionEntry } from '@/supabase/fetches/fetchnutrition'
 import { updateNutritionEntries } from '@/supabase/upserts/upsertnutrition'
-import { fetchClientNutritionGoals, NutritionGoal } from '@/supabase/fetches/fetchnutritiongoals'
-import { fetchClientSessions, fetchSessionWithExercises, SessionWithExercises, Session } from '@/supabase/fetches/fetchsessions'
-import { fetchPersonWorkoutsWithData, WorkoutWithData } from '@/supabase/fetches/fetchpersonworkoutswithdata'
+import { NutritionGoal } from '@/supabase/fetches/fetchnutritiongoals'
+import { fetchSessionWithExercises, SessionWithExercises, Session } from '@/supabase/fetches/fetchsessions'
+import { WorkoutWithData } from '@/supabase/fetches/fetchpersonworkoutswithdata'
 import { upsertWorkout } from '@/supabase/upserts/upsertworkout'
 import { Plus } from 'lucide-react'
 import EditNutrition from '@/modules/clients/editnutrition'
@@ -29,10 +29,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
-import { fetchPersonPackagesByPersonId, PersonPackage } from '@/supabase/fetches/fetchpersonpackages'
-import { fetchPaymentsByPersonId, Payment } from '@/supabase/fetches/fetchpayments'
-import { fetchPackages, Package as PackageType } from '@/supabase/fetches/fetchpackages'
-import { fetchContractsByPersonId, Contract } from '@/supabase/fetches/fetchcontracts'
+import { PersonPackage } from '@/supabase/fetches/fetchpersonpackages'
+import { Payment } from '@/supabase/fetches/fetchpayments'
+import { Package as PackageType } from '@/supabase/fetches/fetchpackages'
+import { Contract } from '@/supabase/fetches/fetchcontracts'
+import { fetchPersonWithData } from '@/supabase/fetches/fetchpersonwithdata'
+import { fetchPersonPackagesByPersonId } from '@/supabase/fetches/fetchpersonpackages'
+import { fetchPaymentsByPersonId } from '@/supabase/fetches/fetchpayments'
+import { fetchClientNutritionGoals } from '@/supabase/fetches/fetchnutritiongoals'
 import {
   Command,
   CommandInput,
@@ -92,99 +96,31 @@ export default function PersonPage() {
 
       setLoading(true)
       try {
-        const { data: personData, error: personError } = await supabase
-          .from('people')
-          .select('*')
-          .eq('id', personId)
-          .single()
+        // Batch fetch all person data in parallel
+        const personData = await fetchPersonWithData(personId as string)
 
-        if (personError) {
-          console.error('Error loading person:', personError)
+        if (!personData.person) {
           setPerson(null)
-        } else {
-          setPerson(personData)
-          
-          // Only fetch client-specific data if this is a client
-          if (personData.converted_at !== null) {
-            // Fetch nutrition entries for this client
-            try {
-              const nutritionData = await fetchClientNutritionEntries(personData.id)
-              setNutritionEntries(nutritionData || [])
-            } catch (err) {
-              console.error('Error loading nutrition entries:', err)
-              setNutritionEntries([])
-            }
-
-            // Fetch nutrition goals for this client
-            try {
-              const goalsData = await fetchClientNutritionGoals(personData.id)
-              setNutritionGoals(goalsData || [])
-            } catch (err) {
-              console.error('Error loading nutrition goals:', err)
-              setNutritionGoals([])
-            }
-
-            // Fetch person_packages for this client
-            try {
-              const personPackagesData = await fetchPersonPackagesByPersonId(personData.id)
-              setPersonPackages(personPackagesData || [])
-            } catch (err) {
-              console.error('Error loading person packages:', err)
-              setPersonPackages([])
-            }
-
-            // Fetch payments for this client
-            try {
-              const paymentsData = await fetchPaymentsByPersonId(personData.id)
-              setPayments(paymentsData || [])
-            } catch (err) {
-              console.error('Error loading payments:', err)
-              setPayments([])
-            }
-
-            // Fetch contracts for this client
-            try {
-              const contractsData = await fetchContractsByPersonId(personData.id)
-              setContracts(contractsData || [])
-            } catch (err) {
-              console.error('Error loading contracts:', err)
-              setContracts([])
-            }
-          }
-
-          // Fetch all packages (for reference in packages tab)
-          try {
-            const packagesData = await fetchPackages()
-            setPackages(packagesData || [])
-          } catch (err) {
-            console.error('Error loading packages:', err)
-            setPackages([])
-          }
-
-          // Fetch sessions for this person (both clients and prospects have sessions) - metadata only
-          try {
-            const personSessions = await fetchClientSessions(personData.id)
-            setSessions(personSessions.sort((a, b) => {
-                  const dateA = a.start_time ? new Date(a.start_time).getTime() : 0
-                  const dateB = b.start_time ? new Date(b.start_time).getTime() : 0
-                  return dateB - dateA
-            }))
-          } catch (err) {
-            console.error('Error loading sessions:', err)
-            setSessions([])
-          }
-
-          // Fetch workouts for this person with all related data (efficient batch queries)
-          // Fetch for both clients and prospects - workouts are independent of conversion status
-          try {
-            const workoutsWithData = await fetchPersonWorkoutsWithData(personData.id)
-            console.log('Fetched workouts for person:', personData.id, workoutsWithData.length, workoutsWithData)
-            setWorkouts(workoutsWithData)
-          } catch (err) {
-            console.error('Error loading workouts:', err)
-            setWorkouts([])
-          }
+          return
         }
+
+        setPerson(personData.person)
+        setNutritionEntries(personData.nutritionEntries)
+        setNutritionGoals(personData.nutritionGoals)
+        setPersonPackages(personData.personPackages)
+        setPayments(personData.payments)
+        setContracts(personData.contracts)
+        setPackages(personData.packages)
+        
+        // Sort sessions by date (most recent first)
+        setSessions(personData.sessions.sort((a, b) => {
+          const dateA = a.start_time ? new Date(a.start_time).getTime() : 0
+          const dateB = b.start_time ? new Date(b.start_time).getTime() : 0
+          return dateB - dateA
+        }))
+        
+        console.log('Fetched workouts for person:', personData.person.id, personData.workouts.length, personData.workouts)
+        setWorkouts(personData.workouts)
       } catch (err) {
         console.error('Unexpected error loading person:', err)
         setPerson(null)

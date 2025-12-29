@@ -22,12 +22,13 @@ export async function fetchProjectedRevenue(trainerId?: string | null): Promise<
   const daysRemainingInMonth = endOfMonth.getDate() - now.getDate() + 1
   const totalDaysInMonth = endOfMonth.getDate()
 
-  // Fetch all clients
-  const clients = await fetchPeople({ isClient: true, trainerId })
+  // Batch fetch clients and packages in parallel
+  const [clients, packages] = await Promise.all([
+    fetchPeople({ isClient: true, trainerId }),
+    fetchPackages(),
+  ])
+  
   if (clients.length === 0) return 0
-
-  // Fetch all packages for lookup
-  const packages = await fetchPackages()
   if (packages.length === 0) return 0
   const packageMap = new Map(packages.map(pkg => [pkg.id, pkg]))
 
@@ -36,8 +37,13 @@ export async function fetchProjectedRevenue(trainerId?: string | null): Promise<
   // Process each client
   for (const client of clients) {
     try {
-      // Get active contract for this client
-      const contracts = await fetchContractsByPersonId(client.id)
+      // Batch fetch contract, person packages, and payments for this client in parallel
+      const [contracts, personPackages, allPayments] = await Promise.all([
+        fetchContractsByPersonId(client.id),
+        fetchPersonPackagesByPersonId(client.id),
+        fetchPaymentsByPersonId(client.id),
+      ])
+      
       const activeContract = contracts.find(c => c.status === 'active')
       
       if (!activeContract) {
@@ -64,12 +70,6 @@ export async function fetchProjectedRevenue(trainerId?: string | null): Promise<
         console.warn(`Invalid package data for client ${client.id}`)
         continue
       }
-
-      // Get person_packages for this client
-      const personPackages = await fetchPersonPackagesByPersonId(client.id)
-      
-      // Get payments for this client in the current month
-      const allPayments = await fetchPaymentsByPersonId(client.id)
       const paymentsThisMonth = allPayments.filter(payment => {
         const paymentDate = new Date(payment.payment_date)
         return paymentDate >= startOfMonth && paymentDate <= endOfMonth
