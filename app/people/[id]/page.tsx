@@ -33,10 +33,13 @@ import { PersonPackage } from '@/supabase/fetches/fetchpersonpackages'
 import { Payment } from '@/supabase/fetches/fetchpayments'
 import { Package as PackageType } from '@/supabase/fetches/fetchpackages'
 import { Contract } from '@/supabase/fetches/fetchcontracts'
-import { fetchPersonWithData } from '@/supabase/fetches/fetchpersonwithdata'
+import { fetchPersonWithWorkouts } from '@/supabase/fetches/fetchpersonwithdata'
 import { fetchPersonPackagesByPersonId } from '@/supabase/fetches/fetchpersonpackages'
 import { fetchPaymentsByPersonId } from '@/supabase/fetches/fetchpayments'
 import { fetchClientNutritionGoals } from '@/supabase/fetches/fetchnutritiongoals'
+import { fetchClientNutritionEntries } from '@/supabase/fetches/fetchnutrition'
+import { fetchContractsByPersonId } from '@/supabase/fetches/fetchcontracts'
+import { fetchPackages } from '@/supabase/fetches/fetchpackages'
 import {
   Command,
   CommandInput,
@@ -52,9 +55,7 @@ export default function PersonPage() {
   const router = useRouter()
 
   const [person, setPerson] = useState<Person | null>(null)
-  const [nutritionEntries, setNutritionEntries] = useState<NutritionEntry[]>([])
-  const [nutritionGoals, setNutritionGoals] = useState<NutritionGoal[]>([])
-  const [sessions, setSessions] = useState<Session[]>([]) // Changed to Session[] - no exercises needed
+  const [sessions, setSessions] = useState<Session[]>([])
   const [workouts, setWorkouts] = useState<WorkoutWithData[]>([])
   const [loading, setLoading] = useState(true)
   const [isEditingNutrition, setIsEditingNutrition] = useState(false)
@@ -81,10 +82,20 @@ export default function PersonPage() {
   }>>([])
   const [openCombobox, setOpenCombobox] = useState<{ [key: number]: boolean }>({})
   const [searchValue, setSearchValue] = useState<{ [key: number]: string }>({})
-  const [personPackages, setPersonPackages] = useState<PersonPackage[]>([])
-  const [packages, setPackages] = useState<PackageType[]>([])
-  const [payments, setPayments] = useState<Payment[]>([])
-  const [contracts, setContracts] = useState<Contract[]>([])
+  
+  // Cached data for tabs (loaded on-demand)
+  const [nutritionEntries, setNutritionEntries] = useState<NutritionEntry[] | null>(null)
+  const [nutritionGoals, setNutritionGoals] = useState<NutritionGoal[] | null>(null)
+  const [personPackages, setPersonPackages] = useState<PersonPackage[] | null>(null)
+  const [packages, setPackages] = useState<PackageType[] | null>(null)
+  const [payments, setPayments] = useState<Payment[] | null>(null)
+  const [contracts, setContracts] = useState<Contract[] | null>(null)
+  
+  // Loading states for each tab
+  const [nutritionLoading, setNutritionLoading] = useState(false)
+  const [packagesLoading, setPackagesLoading] = useState(false)
+  const [paymentsLoading, setPaymentsLoading] = useState(false)
+  const [contractsLoading, setContractsLoading] = useState(false)
 
   const isClient = person?.converted_at !== null && person?.converted_at !== undefined
   const isProspect = !isClient
@@ -96,8 +107,8 @@ export default function PersonPage() {
 
       setLoading(true)
       try {
-        // Batch fetch all person data in parallel
-        const personData = await fetchPersonWithData(personId as string)
+        // Minimal fetch: only person, sessions, and workouts (for progress tab)
+        const personData = await fetchPersonWithWorkouts(personId as string)
 
         if (!personData.person) {
           setPerson(null)
@@ -105,20 +116,7 @@ export default function PersonPage() {
         }
 
         setPerson(personData.person)
-        setNutritionEntries(personData.nutritionEntries)
-        setNutritionGoals(personData.nutritionGoals)
-        setPersonPackages(personData.personPackages)
-        setPayments(personData.payments)
-        setContracts(personData.contracts)
-        setPackages(personData.packages)
-        
-        // Sort sessions by date (most recent first)
-        setSessions(personData.sessions.sort((a, b) => {
-          const dateA = a.start_time ? new Date(a.start_time).getTime() : 0
-          const dateB = b.start_time ? new Date(b.start_time).getTime() : 0
-          return dateB - dateA
-        }))
-        
+        setSessions(personData.sessions)
         console.log('Fetched workouts for person:', personData.person.id, personData.workouts.length, personData.workouts)
         setWorkouts(personData.workouts)
       } catch (err) {
@@ -131,6 +129,129 @@ export default function PersonPage() {
 
     loadPerson()
   }, [params.id])
+
+  // Load nutrition data when nutrition tab is activated
+  useEffect(() => {
+    const loadNutritionData = async () => {
+      if (activeTab !== 'nutrition' || !person) return
+      const isClient = person.converted_at !== null && person.converted_at !== undefined
+      if (!isClient) return
+      // If already loaded, don't reload
+      if (nutritionEntries !== null && nutritionGoals !== null) return
+
+      setNutritionLoading(true)
+      try {
+        const [entries, goals] = await Promise.all([
+          fetchClientNutritionEntries(person.id),
+          fetchClientNutritionGoals(person.id),
+        ])
+        setNutritionEntries(entries)
+        setNutritionGoals(goals)
+      } catch (err) {
+        console.error('Error loading nutrition data:', err)
+        setNutritionEntries([])
+        setNutritionGoals([])
+      } finally {
+        setNutritionLoading(false)
+      }
+    }
+
+    loadNutritionData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, person?.id])
+
+  // Load packages data when packages tab is activated
+  useEffect(() => {
+    const loadPackagesData = async () => {
+      if (activeTab !== 'packages' || !person) return
+      const isClient = person.converted_at !== null && person.converted_at !== undefined
+      if (!isClient) return
+      // If already loaded, don't reload
+      if (personPackages !== null && packages !== null) return
+
+      setPackagesLoading(true)
+      try {
+        const [ppData, pkgData] = await Promise.all([
+          fetchPersonPackagesByPersonId(person.id),
+          fetchPackages(),
+        ])
+        setPersonPackages(ppData)
+        setPackages(pkgData)
+      } catch (err) {
+        console.error('Error loading packages data:', err)
+        setPersonPackages([])
+        setPackages([])
+      } finally {
+        setPackagesLoading(false)
+      }
+    }
+
+    loadPackagesData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, person?.id])
+
+  // Load payments data when payments tab is activated
+  useEffect(() => {
+    const loadPaymentsData = async () => {
+      if (activeTab !== 'payments' || !person) return
+      const isClient = person.converted_at !== null && person.converted_at !== undefined
+      if (!isClient) return
+      // If already loaded, don't reload
+      if (payments !== null && personPackages !== null && packages !== null) return
+
+      setPaymentsLoading(true)
+      try {
+        // Payments tab needs payments, personPackages, and packages
+        const [paymentsData, ppData, pkgData] = await Promise.all([
+          fetchPaymentsByPersonId(person.id),
+          personPackages === null ? fetchPersonPackagesByPersonId(person.id) : Promise.resolve(personPackages),
+          packages === null ? fetchPackages() : Promise.resolve(packages),
+        ])
+        setPayments(paymentsData)
+        // Update caches if they were null
+        if (personPackages === null) setPersonPackages(ppData)
+        if (packages === null) setPackages(pkgData)
+      } catch (err) {
+        console.error('Error loading payments data:', err)
+        setPayments([])
+      } finally {
+        setPaymentsLoading(false)
+      }
+    }
+
+    loadPaymentsData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, person?.id])
+
+  // Load contracts data when contracts tab is activated
+  useEffect(() => {
+    const loadContractsData = async () => {
+      if (activeTab !== 'contracts' || !person) return
+      const isClient = person.converted_at !== null && person.converted_at !== undefined
+      if (!isClient) return
+      // If already loaded, don't reload
+      if (contracts !== null && packages !== null) return
+
+      setContractsLoading(true)
+      try {
+        const [contractsData, pkgData] = await Promise.all([
+          fetchContractsByPersonId(person.id),
+          packages === null ? fetchPackages() : Promise.resolve(packages),
+        ])
+        setContracts(contractsData)
+        // Update cache if it was null
+        if (packages === null) setPackages(pkgData)
+      } catch (err) {
+        console.error('Error loading contracts data:', err)
+        setContracts([])
+      } finally {
+        setContractsLoading(false)
+      }
+    }
+
+    loadContractsData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, person?.id])
 
   // Prevent body scroll when edit overlay is open
   useEffect(() => {
@@ -183,6 +304,20 @@ export default function PersonPage() {
     } catch (err) {
       console.error('Failed to save nutrition entries:', err)
       throw err
+    }
+  }
+
+  const handleRefreshPayments = async () => {
+    if (!person) return
+    try {
+      const [paymentsData, personPackagesData] = await Promise.all([
+        fetchPaymentsByPersonId(person.id),
+        fetchPersonPackagesByPersonId(person.id),
+      ])
+      setPayments(paymentsData || [])
+      setPersonPackages(personPackagesData || [])
+    } catch (err) {
+      console.error('Error reloading payments:', err)
     }
   }
 
@@ -341,51 +476,59 @@ export default function PersonPage() {
       {/* Tab Content */}
       {activeTab === 'nutrition' && (
         <>
-          {/* Nutrition Goals */}
-          <div className="p-3 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-semibold text-white">Nutrition Goals</h2>
+          {nutritionLoading ? (
+            <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
+              <p className="text-gray-400">Loading nutrition data...</p>
             </div>
-            <CompactNutritionGoals
-              clientId={person.id}
-              initialGoals={nutritionGoals}
-              onUpdate={async () => {
-                if (person) {
-                  try {
-                    const goalsData = await fetchClientNutritionGoals(person.id)
-                    setNutritionGoals(goalsData || [])
-                  } catch (err) {
-                    console.error('Error refreshing nutrition goals:', err)
-                  }
-                }
-              }}
-            />
-          </div>
+          ) : (
+            <>
+              {/* Nutrition Goals */}
+              <div className="p-3 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-lg font-semibold text-white">Nutrition Goals</h2>
+                </div>
+                <CompactNutritionGoals
+                  clientId={person.id}
+                  initialGoals={nutritionGoals || []}
+                  onUpdate={async () => {
+                    if (person) {
+                      try {
+                        const goalsData = await fetchClientNutritionGoals(person.id)
+                        setNutritionGoals(goalsData || [])
+                      } catch (err) {
+                        console.error('Error refreshing nutrition goals:', err)
+                      }
+                    }
+                  }}
+                />
+              </div>
 
-          <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-lg font-semibold text-white">Nutrition</h2>
-              {!isEditingNutrition && (
-                <button
-                  onClick={() => setIsEditingNutrition(true)}
-                  className="px-3 py-1 bg-orange-500 hover:bg-orange-600 rounded-md cursor-pointer text-white text-sm"
-                >
-                  Edit Nutrition Information
-                </button>
-              )}
-            </div>
+              <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
+                <div className="flex justify-between items-center mb-3">
+                  <h2 className="text-lg font-semibold text-white">Nutrition</h2>
+                  {!isEditingNutrition && (
+                    <button
+                      onClick={() => setIsEditingNutrition(true)}
+                      className="px-3 py-1 bg-orange-500 hover:bg-orange-600 rounded-md cursor-pointer text-white text-sm"
+                    >
+                      Edit Nutrition Information
+                    </button>
+                  )}
+                </div>
 
-            {isEditingNutrition ? (
-              <EditNutrition
-                clientId={person.id}
-                initialEntries={nutritionEntries}
-                onSave={handleSaveNutrition}
-                onCancel={() => setIsEditingNutrition(false)}
-              />
-            ) : (
-              <NutritionChart entries={nutritionEntries} goals={nutritionGoals} />
-            )}
-          </div>
+                {isEditingNutrition ? (
+                  <EditNutrition
+                    clientId={person.id}
+                    initialEntries={nutritionEntries || []}
+                    onSave={handleSaveNutrition}
+                    onCancel={() => setIsEditingNutrition(false)}
+                  />
+                ) : (
+                  <NutritionChart entries={nutritionEntries || []} goals={nutritionGoals || []} />
+                )}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -1000,31 +1143,45 @@ export default function PersonPage() {
       )}
 
       {activeTab === 'packages' && isClient && (
-        <Packages personPackages={personPackages} packages={packages} />
+        <>
+          {packagesLoading ? (
+            <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
+              <p className="text-gray-400">Loading packages data...</p>
+            </div>
+          ) : (
+            <Packages personPackages={personPackages || []} packages={packages || []} />
+          )}
+        </>
       )}
 
       {activeTab === 'payments' && isClient && person && (
-        <Payments 
-          payments={payments} 
-          personPackages={personPackages} 
-          packages={packages}
-          personId={person.id}
-          onPaymentAdded={async () => {
-            // Reload payments and person packages after payment is added/updated/deleted
-            try {
-              const paymentsData = await fetchPaymentsByPersonId(person.id)
-              setPayments(paymentsData || [])
-              const personPackagesData = await fetchPersonPackagesByPersonId(person.id)
-              setPersonPackages(personPackagesData || [])
-            } catch (err) {
-              console.error('Error reloading payments:', err)
-            }
-          }}
-        />
+        <>
+          {paymentsLoading ? (
+            <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
+              <p className="text-gray-400">Loading payments data...</p>
+            </div>
+          ) : (
+            <Payments 
+              payments={payments || []} 
+              personPackages={personPackages || []} 
+              packages={packages || []}
+              personId={person.id}
+              onPaymentAdded={handleRefreshPayments}
+            />
+          )}
+        </>
       )}
 
       {activeTab === 'contracts' && isClient && (
-        <Contracts contracts={contracts} packages={packages} />
+        <>
+          {contractsLoading ? (
+            <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
+              <p className="text-gray-400">Loading contracts data...</p>
+            </div>
+          ) : (
+            <Contracts contracts={contracts || []} packages={packages || []} />
+          )}
+        </>
       )}
 
       {/* Edit Workout Overlay - Full screen except sidebar */}

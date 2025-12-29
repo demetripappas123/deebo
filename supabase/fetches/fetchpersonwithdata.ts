@@ -29,6 +29,12 @@ export interface PersonWithData {
   workouts: WorkoutWithData[]
 }
 
+export interface PersonWithWorkouts {
+  person: Person | null
+  sessions: Session[]
+  workouts: WorkoutWithData[]
+}
+
 /**
  * Batch fetch all data for a person (client or prospect)
  * This replaces multiple sequential calls with parallel execution
@@ -147,6 +153,60 @@ export async function fetchPersonWithData(
       payments: [],
       contracts: [],
       packages: [],
+      sessions: [],
+      workouts: [],
+    }
+  }
+}
+
+/**
+ * Minimal fetch for person page initial load
+ * Only fetches person, sessions, and workouts (for progress tab)
+ * Other tab data is fetched on-demand by each tab component
+ */
+export async function fetchPersonWithWorkouts(
+  personId: string,
+  trainerId?: string | null
+): Promise<PersonWithWorkouts> {
+  // Fetch person
+  const { data: personData, error: personError } = await supabase
+    .from('people')
+    .select('*')
+    .eq('id', personId)
+    .single()
+
+  if (personError) {
+    console.error('Error loading person:', personError)
+    return {
+      person: null,
+      sessions: [],
+      workouts: [],
+    }
+  }
+
+  // Batch fetch sessions and workouts in parallel
+  try {
+    const [sessions, workouts] = await Promise.all([
+      fetchClientSessions(personId),
+      fetchPersonWorkoutsWithData(personId, trainerId),
+    ])
+
+    // Sort sessions by date (most recent first)
+    const sortedSessions = sessions.sort((a, b) => {
+      const dateA = a.start_time ? new Date(a.start_time).getTime() : 0
+      const dateB = b.start_time ? new Date(b.start_time).getTime() : 0
+      return dateB - dateA
+    })
+
+    return {
+      person: personData,
+      sessions: sortedSessions,
+      workouts: workouts,
+    }
+  } catch (err) {
+    console.error('Unexpected error in minimal fetch:', err)
+    return {
+      person: personData,
       sessions: [],
       workouts: [],
     }
