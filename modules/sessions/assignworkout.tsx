@@ -310,9 +310,9 @@ export default function AssignWorkout({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="bg-[#1f1f1f] border-[#2a2a2a] text-white max-w-2xl">
+        <DialogContent className="bg-card border-border text-card-foreground max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-white">
+          <DialogTitle className="text-foreground">
             Assign Workout to Session{sessionType ? ` - ${sessionType}` : ''}
           </DialogTitle>
         </DialogHeader>
@@ -321,18 +321,18 @@ export default function AssignWorkout({
           {!selectedOption ? (
             // Initial selection screen
             <div className="space-y-3">
-              <p className="text-gray-400 text-sm mb-4">
+              <p className="text-muted-foreground text-sm mb-4">
                 Choose how you'd like to assign a workout:
               </p>
               
               <Button
                 onClick={() => handleOptionSelect('create')}
                 variant="outline"
-                className="w-full justify-start text-left h-auto bg-[#111111] hover:bg-[#1a1a1a] text-white border-[#2a2a2a] cursor-pointer p-4"
+                className="w-full justify-start text-left h-auto bg-background hover:bg-muted text-foreground border-border cursor-pointer p-4"
               >
                 <div className="flex flex-col items-start w-full">
-                  <span className="font-semibold text-white text-base">Create New Workout</span>
-                  <span className="text-xs text-gray-400 mt-1.5">
+                  <span className="font-semibold text-foreground text-base">Create New Workout</span>
+                  <span className="text-xs text-muted-foreground mt-1.5">
                     Build a custom workout from scratch
                   </span>
                 </div>
@@ -341,11 +341,11 @@ export default function AssignWorkout({
               <Button
                 onClick={() => handleOptionSelect('program')}
                 variant="outline"
-                className="w-full justify-start text-left h-auto bg-[#111111] hover:bg-[#1a1a1a] text-white border-[#2a2a2a] cursor-pointer p-4"
+                className="w-full justify-start text-left h-auto bg-background hover:bg-muted text-foreground border-border cursor-pointer p-4"
               >
                 <div className="flex flex-col items-start w-full">
-                  <span className="font-semibold text-white text-base">Choose from Program</span>
-                  <span className="text-xs text-gray-400 mt-1.5">
+                  <span className="font-semibold text-foreground text-base">Choose from Program</span>
+                  <span className="text-xs text-muted-foreground mt-1.5">
                     Select a workout from an existing program
                   </span>
                 </div>
@@ -358,7 +358,7 @@ export default function AssignWorkout({
               <Button
                 onClick={() => setSelectedOption(null)}
                 variant="ghost"
-                className="text-gray-400 hover:text-white cursor-pointer p-0 h-auto"
+                className="text-muted-foreground hover:text-foreground cursor-pointer p-0 h-auto"
               >
                 ← Back
               </Button>
@@ -366,9 +366,9 @@ export default function AssignWorkout({
               {/* Create New Workout - This should not render here since we close the dialog */}
               {selectedOption === 'create' && (
                 <div className="space-y-4">
-                  <div className="bg-[#111111] border border-[#2a2a2a] rounded-md p-4">
-                    <h3 className="text-white font-semibold mb-4">Create New Workout</h3>
-                    <div className="space-y-3 text-gray-400 text-sm">
+                  <div className="bg-background border border-border rounded-md p-4">
+                    <h3 className="text-foreground font-semibold mb-4">Create New Workout</h3>
+                    <div className="space-y-3 text-muted-foreground text-sm">
                       <p>Opening workout editor...</p>
                     </div>
                   </div>
@@ -378,13 +378,13 @@ export default function AssignWorkout({
               {/* Choose from Program */}
               {selectedOption === 'program' && (
                 <div className="space-y-4">
-                  <div className="bg-[#111111] border border-[#2a2a2a] rounded-md p-4">
-                    <h3 className="text-white font-semibold mb-4">Select from Program</h3>
+                  <div className="bg-background border border-border rounded-md p-4">
+                    <h3 className="text-foreground font-semibold mb-4">Select from Program</h3>
                     
                     {loadingPrograms ? (
-                      <div className="text-gray-400 text-sm">Loading programs...</div>
+                      <div className="text-muted-foreground text-sm">Loading programs...</div>
                     ) : programs.length === 0 ? (
-                      <div className="text-gray-400 text-sm">
+                      <div className="text-muted-foreground text-sm">
                         <p>No programs available.</p>
                         <p className="text-xs mt-2">Create a program first to assign workouts from it.</p>
                       </div>
@@ -393,7 +393,7 @@ export default function AssignWorkout({
                         {/* Program Selection */}
                         {!selectedProgramId ? (
                           <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                            <label className="block text-sm font-medium text-muted-foreground mb-2">
                               Select a Program:
                             </label>
                             <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -402,7 +402,7 @@ export default function AssignWorkout({
                                   key={program.id}
                                   onClick={() => setSelectedProgramId(program.id)}
                                   variant="outline"
-                                  className="w-full justify-start text-left h-auto bg-[#1a1a1a] hover:bg-[#262626] text-white border-[#2a2a2a] cursor-pointer p-3"
+                                  className="w-full justify-start text-left h-auto bg-muted hover:bg-muted/80 text-foreground border-border cursor-pointer p-3"
                                 >
                                   <span className="font-medium">{program.name}</span>
                                 </Button>
@@ -418,23 +418,23 @@ export default function AssignWorkout({
                                 setSelectedDayId(null)
                               }}
                               variant="ghost"
-                              className="text-gray-400 hover:text-white cursor-pointer p-0 h-auto text-sm"
+                              className="text-muted-foreground hover:text-foreground cursor-pointer p-0 h-auto text-sm"
                             >
                               ← Back to Programs
                             </Button>
 
                             {/* Day Selection */}
                             {loadingDays ? (
-                              <div className="text-gray-400 text-sm">Loading days...</div>
+                              <div className="text-muted-foreground text-sm">Loading days...</div>
                             ) : loadingDays ? (
-                              <div className="text-gray-400 text-sm">Loading days...</div>
+                              <div className="text-muted-foreground text-sm">Loading days...</div>
                             ) : allDays.length === 0 ? (
-                              <div className="text-gray-400 text-sm">
+                              <div className="text-muted-foreground text-sm">
                                 <p>No days available in this program.</p>
                               </div>
                             ) : (
                               <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                <label className="block text-sm font-medium text-muted-foreground mb-2">
                                   Select a Day:
                                 </label>
                                 <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -445,8 +445,8 @@ export default function AssignWorkout({
                                       variant={selectedDayId === day.id ? "default" : "outline"}
                                       className={`w-full justify-start text-left h-auto cursor-pointer p-3 ${
                                         selectedDayId === day.id
-                                          ? 'bg-[#f97316] hover:bg-[#ea6820] text-white'
-                                          : 'bg-[#1a1a1a] hover:bg-[#262626] text-white border-[#2a2a2a]'
+                                          ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                                          : 'bg-muted hover:bg-muted/80 text-foreground border-border'
                                       }`}
                                     >
                                       <div className="flex flex-col items-start w-full">
@@ -469,11 +469,11 @@ export default function AssignWorkout({
               )}
 
               {/* Action buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-[#2a2a2a]">
+              <div className="flex justify-end gap-3 pt-4 border-t border-border">
                 <Button
                   onClick={handleCancel}
                   variant="outline"
-                  className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+                  className="bg-muted hover:bg-muted/80 text-foreground border-border cursor-pointer"
                   disabled={loadingDays}
                 >
                   Cancel
@@ -481,7 +481,7 @@ export default function AssignWorkout({
                 {selectedOption === 'program' && selectedDayId ? (
                   <Button
                     onClick={handleAssignProgramDay}
-                    className="bg-[#f97316] hover:bg-[#ea6820] text-white cursor-pointer"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
                     disabled={loadingDays}
                   >
                     {loadingDays ? 'Assigning...' : 'Assign Workout'}
@@ -493,7 +493,7 @@ export default function AssignWorkout({
                       console.log('Assign workout:', selectedOption)
                       handleCancel()
                     }}
-                    className="bg-[#f97316] hover:bg-[#ea6820] text-white cursor-pointer"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
                     disabled={selectedOption === 'program' && !selectedDayId}
                   >
                     Assign Workout

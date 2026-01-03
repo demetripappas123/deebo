@@ -12,6 +12,7 @@ import {
   Cell,
 } from 'recharts'
 import { SessionWithExercises } from '@/supabase/fetches/fetchsessions'
+import { useTheme } from '@/context/themecontext'
 
 type RPERIRChartProps = {
   sessions: SessionWithExercises[]
@@ -25,6 +26,7 @@ type RPERIRDataPoint = {
 }
 
 export default function RPERIRChart({ sessions }: RPERIRChartProps) {
+  const { variables } = useTheme()
   const [daysView, setDaysView] = useState<30 | 60 | 90>(30)
   const [metricType, setMetricType] = useState<'RPE' | 'RIR'>('RPE')
 
@@ -177,8 +179,8 @@ export default function RPERIRChart({ sessions }: RPERIRChartProps) {
             onClick={() => setDaysView(30)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               daysView === 30
-                ? 'bg-orange-500 text-white'
-                : 'bg-[#333333] text-gray-300 hover:bg-[#404040]'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             } cursor-pointer`}
           >
             30 Days
@@ -211,8 +213,8 @@ export default function RPERIRChart({ sessions }: RPERIRChartProps) {
             onClick={() => setMetricType('RPE')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               metricType === 'RPE'
-                ? 'bg-orange-500 text-white'
-                : 'bg-[#333333] text-gray-300 hover:bg-[#404040]'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             } cursor-pointer`}
           >
             RPE
@@ -231,41 +233,41 @@ export default function RPERIRChart({ sessions }: RPERIRChartProps) {
       </div>
 
       {/* Chart */}
-      <div className="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-white mb-4">
+      <div className="bg-background border border-border rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-foreground mb-4">
           Average {metricType} per Workout
         </h3>
         {chartData.length === 0 ? (
-          <div className="h-64 flex items-center justify-center text-gray-400">
+          <div className="h-64 flex items-center justify-center text-muted-foreground">
             <p>No {metricType} data available for the selected period.</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+              <CartesianGrid strokeDasharray="3 3" stroke={variables.border} />
               <XAxis
                 dataKey="formattedDate"
-                stroke="#888888"
+                stroke={variables.mutedForeground}
                 style={{ fontSize: '12px' }}
                 angle={-45}
                 textAnchor="end"
                 height={80}
               />
               <YAxis
-                stroke="#888888"
+                stroke={variables.mutedForeground}
                 style={{ fontSize: '12px' }}
                 tickFormatter={formatValue}
                 domain={metricType === 'RPE' ? [5, 10] : [0, 'auto']}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#1f1f1f',
-                  border: '1px solid #2a2a2a',
+                  backgroundColor: variables.card,
+                  border: `1px solid ${variables.border}`,
                   borderRadius: '6px',
-                  color: '#ffffff',
+                  color: variables.foreground,
                 }}
-                itemStyle={{ color: '#ffffff' }}
-                labelStyle={{ color: '#ffffff' }}
+                itemStyle={{ color: variables.foreground }}
+                labelStyle={{ color: variables.foreground }}
                 formatter={(value: number) => [
                   `${value.toFixed(2)}`,
                   `Avg ${metricType}`,

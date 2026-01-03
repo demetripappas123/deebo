@@ -19,6 +19,7 @@ import { SessionType } from '@/supabase/fetches/fetchsessions'
 import { upsertProspect, ProspectFormData } from '@/supabase/upserts/upsertperson'
 import { fetchPackages } from '@/supabase/fetches/fetchpackages'
 import { fetchPersonPackagesWithRemaining, PersonPackageWithRemaining } from '@/supabase/fetches/fetchpersonpackageswithremaining'
+import { useAuth } from '@/context/authcontext'
 
 type AddEventDialogProps = {
   initialPersonId?: string | null
@@ -28,6 +29,7 @@ type AddEventDialogProps = {
 
 export default function AddEventDialog({ initialPersonId = null, initialType = 'Client Session', trigger }: AddEventDialogProps = {}) {
   const router = useRouter()
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<SessionType>(initialType)
   const [personId, setPersonId] = useState<string | null>(initialPersonId)
@@ -39,6 +41,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
   const [prospectName, setProspectName] = useState('')
   const [prospectNumber, setProspectNumber] = useState('')
   const [prospectNotes, setProspectNotes] = useState('')
+  const [prospectLeadSource, setProspectLeadSource] = useState('')
   const [addingProspect, setAddingProspect] = useState(false)
   const [selectedPersonPackageId, setSelectedPersonPackageId] = useState<string | null>(null)
   const [availablePersonPackages, setAvailablePersonPackages] = useState<PersonPackageWithRemaining[]>([])
@@ -60,10 +63,11 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
   // Load clients, prospects, and packages
   useEffect(() => {
     const loadPeople = async () => {
+      if (!user?.id) return
       // Batch fetch all data in parallel
       const [clientsData, prospectsData, packagesData] = await Promise.all([
-        fetchClients(),
-        fetchProspects(),
+        fetchClients(user.id),
+        fetchProspects(user.id),
         fetchPackages(),
       ])
       setClients(clientsData)
@@ -71,7 +75,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
       setPackages(packagesData)
     }
     loadPeople()
-  }, [])
+  }, [user])
 
   // Load available person packages when client is selected and type is Client Session
   // This fetches person_packages for the selected client (personId) that are:
@@ -107,18 +111,24 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
       alert('Please enter a prospect name')
       return
     }
+    if (!prospectLeadSource.trim()) {
+      alert('Please enter a lead source')
+      return
+    }
 
     setAddingProspect(true)
+    // Use lead_source as-is (must match ENUM values exactly)
     const prospectData: ProspectFormData = {
       name: prospectName,
       number: prospectNumber || undefined,
       notes: prospectNotes || undefined,
+      lead_source: prospectLeadSource || null,
     }
 
     try {
-      const result = await upsertProspect(prospectData)
+      const result = await upsertProspect(prospectData, user?.id || null)
       // Refresh prospects list
-      const prospectsData = await fetchProspects()
+      const prospectsData = await fetchProspects(user?.id || null)
       setProspects(prospectsData)
       // Select the newly created prospect
       if (result && result[0]) {
@@ -128,6 +138,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
       setProspectName('')
       setProspectNumber('')
       setProspectNotes('')
+      setProspectLeadSource('')
       setAddProspectOpen(false)
     } catch (err) {
       console.error(err)
@@ -182,12 +193,12 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
         </DialogTrigger>
       ) : (
         <DialogTrigger asChild>
-          <Button className="bg-orange-500 text-white font-semibold hover:bg-orange-600 cursor-pointer">
+          <Button className="bg-primary text-primary-foreground font-semibold hover:bg-primary/90 cursor-pointer">
             Add Event
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-lg bg-[#1f1f1f] text-white border border-[#2a2a2a]">
+      <DialogContent className="sm:max-w-lg bg-card text-card-foreground border border-border">
         <DialogHeader>
           <DialogTitle>Add New Event</DialogTitle>
           <DialogDescription>
@@ -204,7 +215,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
               setPersonId(null) // Reset person selection when type changes
               setSelectedPersonPackageId(null) // Reset package selection
             }}
-            className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
           >
             <option>KO</option>
             <option>KOFU</option>
@@ -222,7 +233,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
                   setPersonId(e.target.value)
                   setSelectedPersonPackageId(null) // Reset package when person changes
                 }}
-                className="flex-1 px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="flex-1 px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 required
               >
                 <option value="">Select {isClientType ? 'Client' : 'Prospect'}</option>
@@ -241,7 +252,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
                 <Button
                   type="button"
                   onClick={() => setAddProspectOpen(true)}
-                  className="bg-[#333333] text-white hover:bg-[#404040] cursor-pointer whitespace-nowrap"
+                  className="bg-muted text-foreground hover:bg-muted/80 cursor-pointer whitespace-nowrap"
                 >
                   + Add Prospect
                 </Button>
@@ -252,13 +263,13 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
           {/* Person Package Selection - only for Client Sessions */}
           {isClientType && personId && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300">
+              <label className="text-sm font-medium text-muted-foreground">
                 Package (Optional)
               </label>
               <select
                 value={selectedPersonPackageId ?? ''}
                 onChange={(e) => setSelectedPersonPackageId(e.target.value || null)}
-                className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="">No package (manual session)</option>
                 {availablePersonPackages.map((pp) => {
@@ -271,7 +282,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
                 })}
               </select>
               {availablePersonPackages.length === 0 && personId && (
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted-foreground">
                   No active packages with remaining sessions found for this client.
                 </p>
               )}
@@ -283,19 +294,19 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
             type="datetime-local"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value)}
-            className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
           />
 
           {/* Buttons */}
           <div className="flex justify-end gap-2">
             <DialogClose asChild>
-            <Button className="bg-[#333333] text-white hover:bg-[#404040] cursor-pointer">
+            <Button className="bg-muted text-foreground hover:bg-muted/80 cursor-pointer">
                 Cancel
               </Button>
             </DialogClose>
             <Button
               type="submit"
-              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:bg-orange-300 cursor-pointer disabled:cursor-not-allowed"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:bg-primary/50 cursor-pointer disabled:cursor-not-allowed"
               disabled={loading}
             >
               {loading ? 'Saving...' : 'Save'}
@@ -305,7 +316,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
 
         {/* Add Prospect Dialog */}
         <Dialog open={addProspectOpen} onOpenChange={setAddProspectOpen}>
-          <DialogContent className="sm:max-w-lg bg-[#1f1f1f] text-white border border-[#2a2a2a]">
+          <DialogContent className="sm:max-w-lg bg-card text-card-foreground border border-border">
             <DialogHeader>
               <DialogTitle>Add New Prospect</DialogTitle>
               <DialogDescription>
@@ -319,7 +330,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
                 placeholder="Name *"
                 value={prospectName}
                 onChange={(e) => setProspectName(e.target.value)}
-                className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 required
               />
               <input
@@ -327,13 +338,34 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
                 placeholder="Number"
                 value={prospectNumber}
                 onChange={(e) => setProspectNumber(e.target.value)}
-                className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               />
+              <select
+                value={prospectLeadSource}
+                onChange={(e) => setProspectLeadSource(e.target.value)}
+                className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                required
+              >
+                <option value="">Select Lead Source *</option>
+                <option value="instagram reel">Instagram Reel</option>
+                <option value="instagram dms">Instagram DMs</option>
+                <option value="tiktok post">TikTok Post</option>
+                <option value="tiktok dms">TikTok DMs</option>
+                <option value="facebook link">Facebook Link</option>
+                <option value="snapchat link">Snapchat Link</option>
+                <option value="email campaign">Email Campaign</option>
+                <option value="text campaign">Text Campaign</option>
+                <option value="call campaign">Call Campaign</option>
+                <option value="website">Website</option>
+                <option value="personal link">Personal Link</option>
+                <option value="in person">In Person</option>
+                <option value="client referral">Client Referral</option>
+              </select>
               <textarea
                 placeholder="Notes"
                 value={prospectNotes}
                 onChange={(e) => setProspectNotes(e.target.value)}
-                className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 h-24 resize-none"
+                className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary h-24 resize-none"
               />
               <div className="flex justify-end gap-2">
                 <Button
@@ -343,14 +375,15 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
                     setProspectName('')
                     setProspectNumber('')
                     setProspectNotes('')
+                    setProspectLeadSource('')
                   }}
-                  className="bg-[#333333] text-white hover:bg-[#404040] cursor-pointer"
+                  className="bg-muted text-foreground hover:bg-muted/80 cursor-pointer"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:bg-orange-300 cursor-pointer disabled:cursor-not-allowed"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:bg-primary/50 cursor-pointer disabled:cursor-not-allowed"
                   disabled={addingProspect}
                 >
                   {addingProspect ? 'Saving...' : 'Save'}

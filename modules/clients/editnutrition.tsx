@@ -135,22 +135,22 @@ export default function EditNutrition({
   const monthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   return (
-    <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
+    <div className="p-4 bg-card border border-border rounded-md">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigateMonth('prev')}
-            className="text-gray-400 hover:text-white cursor-pointer"
+            className="text-muted-foreground hover:text-foreground cursor-pointer"
             title="Previous month"
           >
             <ChevronLeft size={20} />
           </button>
-          <h2 className="text-lg font-semibold text-white min-w-[200px] text-center">
+          <h2 className="text-lg font-semibold text-foreground min-w-[200px] text-center">
             {monthName}
           </h2>
           <button
             onClick={() => navigateMonth('next')}
-            className="text-gray-400 hover:text-white cursor-pointer"
+            className="text-muted-foreground hover:text-foreground cursor-pointer"
             title="Next month"
           >
             <ChevronRight size={20} />
@@ -160,14 +160,14 @@ export default function EditNutrition({
           <Button
             onClick={onCancel}
             variant="outline"
-            className="cursor-pointer bg-[#333333] text-white border-[#2a2a2a] hover:bg-[#404040] hover:text-white"
+            className="cursor-pointer bg-muted text-foreground border-border hover:bg-muted/80 hover:text-foreground"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSave}
             disabled={isSaving}
-            className="cursor-pointer bg-orange-500 hover:bg-orange-600 text-white"
+            className="cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {isSaving ? 'Saving...' : 'Save'}
           </Button>
@@ -177,12 +177,12 @@ export default function EditNutrition({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="border-b border-[#2a2a2a]">
-              <th className="text-left p-2 text-white font-semibold">Date</th>
-              <th className="text-left p-2 text-white font-semibold">Calories</th>
-              <th className="text-left p-2 text-white font-semibold">Protein (g)</th>
-              <th className="text-left p-2 text-white font-semibold">Carbs (g)</th>
-              <th className="text-left p-2 text-white font-semibold">Fat (g)</th>
+            <tr className="border-b border-border">
+              <th className="text-left p-2 text-foreground font-semibold">Date</th>
+              <th className="text-left p-2 text-foreground font-semibold">Calories</th>
+              <th className="text-left p-2 text-foreground font-semibold">Protein (g)</th>
+              <th className="text-left p-2 text-foreground font-semibold">Carbs (g)</th>
+              <th className="text-left p-2 text-foreground font-semibold">Fat (g)</th>
             </tr>
           </thead>
           <tbody>
@@ -194,9 +194,9 @@ export default function EditNutrition({
               return (
                 <tr
                   key={dateStr}
-                  className={`border-b border-[#2a2a2a] hover:bg-[#262626] ${isToday ? 'bg-[#1a1a1a]' : ''}`}
+                  className={`border-b border-border hover:bg-muted ${isToday ? 'bg-background' : ''}`}
                 >
-                  <td className="p-2 text-gray-300">
+                  <td className="p-2 text-muted-foreground">
                     {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </td>
                   <td className="p-2">
@@ -211,7 +211,7 @@ export default function EditNutrition({
                         )
                       }
                       placeholder="—"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-input text-foreground border-border placeholder-muted-foreground w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                   </td>
                   <td className="p-2">
@@ -226,7 +226,7 @@ export default function EditNutrition({
                         )
                       }
                       placeholder="—"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-input text-foreground border-border placeholder-muted-foreground w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                   </td>
                   <td className="p-2">
@@ -241,7 +241,7 @@ export default function EditNutrition({
                         )
                       }
                       placeholder="—"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-input text-foreground border-border placeholder-muted-foreground w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                   </td>
                   <td className="p-2">
@@ -256,7 +256,7 @@ export default function EditNutrition({
                         )
                       }
                       placeholder="—"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-input text-foreground border-border placeholder-muted-foreground w-full [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                   </td>
                 </tr>

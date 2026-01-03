@@ -188,9 +188,9 @@ export default function ConversionPage() {
 
   if (loading) {
     return (
-      <main className="p-8 text-white bg-[#111111] min-h-screen flex items-center justify-center">
+      <main className="p-8 text-foreground bg-background min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-300">Loading...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </main>
     )
@@ -198,12 +198,12 @@ export default function ConversionPage() {
 
   if (error) {
     return (
-      <main className="p-8 text-white bg-[#111111] min-h-screen flex items-center justify-center">
+      <main className="p-8 text-foreground bg-background min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-400 mb-4">{error}</p>
           <button
             onClick={() => router.push('/people')}
-            className="px-4 py-2 bg-[#333333] hover:bg-[#404040] text-white rounded-md cursor-pointer"
+            className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-md cursor-pointer"
           >
             Go Back
           </button>
@@ -214,12 +214,12 @@ export default function ConversionPage() {
 
   if (!person) {
     return (
-      <main className="p-8 text-white bg-[#111111] min-h-screen flex items-center justify-center">
+      <main className="p-8 text-foreground bg-background min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-300 mb-4">Person not found</p>
+          <p className="text-muted-foreground mb-4">Person not found</p>
           <button
             onClick={() => router.push('/people')}
-            className="px-4 py-2 bg-[#333333] hover:bg-[#404040] text-white rounded-md cursor-pointer"
+            className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground rounded-md cursor-pointer"
           >
             Go Back
           </button>
@@ -229,24 +229,24 @@ export default function ConversionPage() {
   }
 
   return (
-    <main className="p-8 text-white bg-[#111111] min-h-screen">
+    <main className="p-8 text-foreground bg-background min-h-screen">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Convert Prospect to Client</h1>
 
-        <div className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6 mb-6">
+        <div className="bg-card border border-border rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Prospect Information</h2>
-          <div className="space-y-2 text-gray-300">
+          <div className="space-y-2 text-muted-foreground">
             <p>
-              <span className="font-semibold text-white">Name:</span> {person.name}
+              <span className="font-semibold text-foreground">Name:</span> {person.name}
             </p>
             {person.number && (
               <p>
-                <span className="font-semibold text-white">Number:</span> {person.number}
+                <span className="font-semibold text-foreground">Number:</span> {person.number}
               </p>
             )}
             {person.notes && (
               <p>
-                <span className="font-semibold text-white">Notes:</span> {person.notes}
+                <span className="font-semibold text-foreground">Notes:</span> {person.notes}
               </p>
             )}
           </div>
@@ -260,11 +260,11 @@ export default function ConversionPage() {
         </div>
 
         {/* Contract Form */}
-        <div className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4 text-white">Contract Information</h2>
+        <div className="bg-card border border-border rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4 text-foreground">Contract Information</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1 text-gray-400">
+              <label className="block text-sm font-medium mb-1 text-muted-foreground">
                 Contract Duration (Months) *
               </label>
               <Input
@@ -273,20 +273,20 @@ export default function ConversionPage() {
                 value={contractDuration}
                 onChange={(e) => setContractDuration(e.target.value)}
                 placeholder="e.g., 12"
-                className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                className="bg-background text-foreground border-border placeholder-muted-foreground [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1 text-gray-400">
+              <label className="block text-sm font-medium mb-1 text-muted-foreground">
                 First Billing Date *
               </label>
               <Input
                 type="date"
                 value={firstBillingDate}
                 onChange={(e) => setFirstBillingDate(e.target.value)}
-                className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 cursor-pointer"
+                className="bg-background text-foreground border-border placeholder-muted-foreground cursor-pointer"
                 required
               />
             </div>
@@ -297,9 +297,9 @@ export default function ConversionPage() {
                 id="autoRenew"
                 checked={autoRenew}
                 onChange={(e) => setAutoRenew(e.target.checked)}
-                className="w-4 h-4 rounded border-[#2a2a2a] bg-[#111111] text-orange-500 focus:ring-orange-500 focus:ring-2 cursor-pointer"
+                className="w-4 h-4 rounded border-border bg-background text-primary focus:ring-primary focus:ring-2 cursor-pointer"
               />
-              <label htmlFor="autoRenew" className="text-sm font-medium text-gray-400 cursor-pointer">
+              <label htmlFor="autoRenew" className="text-sm font-medium text-muted-foreground cursor-pointer">
                 Auto Renew
               </label>
             </div>
@@ -307,8 +307,8 @@ export default function ConversionPage() {
         </div>
 
         {/* Package Selection */}
-        <div className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4 text-white">Package Selection</h2>
+        <div className="bg-card border border-border rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4 text-foreground">Package Selection</h2>
           
           <div className="mb-4">
             <div className="flex gap-4 mb-4">
@@ -317,7 +317,7 @@ export default function ConversionPage() {
                 className={`px-4 py-2 rounded-md transition-colors cursor-pointer ${
                   packageSelectionMode === 'existing'
                     ? 'bg-orange-500 text-white'
-                    : 'bg-[#333333] text-gray-400 hover:bg-[#404040]'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
                 Use Existing Package
@@ -327,7 +327,7 @@ export default function ConversionPage() {
                 className={`px-4 py-2 rounded-md transition-colors cursor-pointer ${
                   packageSelectionMode === 'new'
                     ? 'bg-orange-500 text-white'
-                    : 'bg-[#333333] text-gray-400 hover:bg-[#404040]'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
                 Create New Package
@@ -336,13 +336,13 @@ export default function ConversionPage() {
 
             {packageSelectionMode === 'existing' ? (
               <div>
-                <label className="block text-sm font-medium mb-1 text-gray-400">
+                <label className="block text-sm font-medium mb-1 text-muted-foreground">
                   Select Package *
                 </label>
                 <select
                   value={selectedPackageId}
                   onChange={(e) => setSelectedPackageId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md bg-[#111111] border border-[#2a2a2a] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 cursor-pointer"
+                  className="w-full px-3 py-2 rounded-md bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer"
                   required
                 >
                   <option value="">Select a package</option>
@@ -356,7 +356,7 @@ export default function ConversionPage() {
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-400">
+                  <label className="block text-sm font-medium mb-1 text-muted-foreground">
                     Package Name *
                   </label>
                   <Input
@@ -364,14 +364,14 @@ export default function ConversionPage() {
                     value={packageName}
                     onChange={(e) => setPackageName(e.target.value)}
                     placeholder="e.g., Standard Package"
-                    className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400"
+                    className="bg-background text-foreground border-border placeholder-muted-foreground"
                     required
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-400">
+                    <label className="block text-sm font-medium mb-1 text-muted-foreground">
                       Unit Cost ($) *
                     </label>
                     <Input
@@ -381,13 +381,13 @@ export default function ConversionPage() {
                       value={unitCost}
                       onChange={(e) => setUnitCost(e.target.value)}
                       placeholder="0.00"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-background text-foreground border-border placeholder-muted-foreground [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-400">
+                    <label className="block text-sm font-medium mb-1 text-muted-foreground">
                       Units Per Cycle *
                     </label>
                     <Input
@@ -396,7 +396,7 @@ export default function ConversionPage() {
                       value={unitsPerCycle}
                       onChange={(e) => setUnitsPerCycle(e.target.value)}
                       placeholder="e.g., 12"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-background text-foreground border-border placeholder-muted-foreground [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       required
                     />
                   </div>
@@ -404,7 +404,7 @@ export default function ConversionPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-400">
+                    <label className="block text-sm font-medium mb-1 text-muted-foreground">
                       Billing Cycle (Weeks) *
                     </label>
                     <Input
@@ -413,13 +413,13 @@ export default function ConversionPage() {
                       value={billingCycleWeeks}
                       onChange={(e) => setBillingCycleWeeks(e.target.value)}
                       placeholder="e.g., 4"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-background text-foreground border-border placeholder-muted-foreground [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-400">
+                    <label className="block text-sm font-medium mb-1 text-muted-foreground">
                       Session Duration (Minutes)
                     </label>
                     <Input
@@ -428,7 +428,7 @@ export default function ConversionPage() {
                       value={sessionDurationMinutes}
                       onChange={(e) => setSessionDurationMinutes(e.target.value)}
                       placeholder="e.g., 60"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-background text-foreground border-border placeholder-muted-foreground [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                   </div>
                 </div>
@@ -447,7 +447,7 @@ export default function ConversionPage() {
           <Button
             onClick={() => router.push(`/people/${person.id}`)}
             variant="outline"
-            className="px-6 py-3 bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+            className="px-6 py-3 bg-muted hover:bg-muted/80 text-foreground border-border cursor-pointer"
           >
             Cancel
           </Button>

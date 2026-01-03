@@ -13,6 +13,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog'
 import { upsertClient, ClientFormData } from '@/supabase/upserts/upsertperson'
+import { useAuth } from '@/context/authcontext'
 
 interface AddClientDialogProps {
   onClientAdded?: () => void
@@ -20,6 +21,7 @@ interface AddClientDialogProps {
 
 export default function AddClientDialog({ onClientAdded }: AddClientDialogProps) {
   const router = useRouter()
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [number, setNumber] = useState('')
@@ -33,7 +35,7 @@ export default function AddClientDialog({ onClientAdded }: AddClientDialogProps)
     const clientData: ClientFormData = { name, number, notes }
 
     try {
-      await upsertClient(clientData)
+      await upsertClient(clientData, user?.id || null)
       setName('')
       setNumber('')
       setNotes('')
@@ -62,11 +64,11 @@ export default function AddClientDialog({ onClientAdded }: AddClientDialogProps)
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button className="bg-orange-500 text-white font-semibold hover:bg-orange-600 cursor-pointer">
+        <Button className="bg-primary text-primary-foreground font-semibold hover:bg-primary/90 cursor-pointer">
           Add Client
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg bg-[#1f1f1f] text-white border border-[#2a2a2a]">
+      <DialogContent className="sm:max-w-lg bg-card text-card-foreground border border-border">
         <DialogHeader>
           <DialogTitle>Add New Client</DialogTitle>
           <DialogDescription>
@@ -80,30 +82,30 @@ export default function AddClientDialog({ onClientAdded }: AddClientDialogProps)
             placeholder="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
           />
           <input
             type="text"
             placeholder="Number"
             value={number}
             onChange={(e) => setNumber(e.target.value)}
-            className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
           />
           <textarea
             placeholder="Notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 h-24 resize-none"
+            className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary h-24 resize-none"
           />
           <div className="flex justify-end gap-2">
             <DialogClose asChild>
-              <Button className="bg-[#333333] text-white hover:bg-[#404040] cursor-pointer">
+              <Button className="bg-muted text-foreground hover:bg-muted/80 cursor-pointer">
                 Cancel
               </Button>
             </DialogClose>
             <Button
               type="submit"
-              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:bg-orange-300 cursor-pointer disabled:cursor-not-allowed"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold disabled:bg-primary/50 cursor-pointer disabled:cursor-not-allowed"
               disabled={loading}
             >
               {loading ? 'Saving...' : 'Save'}

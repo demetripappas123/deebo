@@ -122,11 +122,11 @@ export default function TrainerGoals({ trainerId }: TrainerGoalsProps) {
   }
 
   if (loading) {
-    return <p className="text-gray-400">Loading goals...</p>
+    return <p className="text-muted-foreground">Loading goals...</p>
   }
 
   if (!trainerGoal) {
-    return <p className="text-gray-400">Trainer goals not found.</p>
+    return <p className="text-muted-foreground">Trainer goals not found.</p>
   }
 
   return (
@@ -135,30 +135,30 @@ export default function TrainerGoals({ trainerId }: TrainerGoalsProps) {
       <div className="space-y-4">
         {/* Goals Display */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-3 bg-[#111111] rounded-md">
-            <div className="text-xs text-gray-400 mb-1">Monthly Revenue Goal</div>
-            <div className="text-lg font-semibold text-white">
+          <div className="p-3 bg-card rounded-md">
+            <div className="text-xs text-muted-foreground mb-1">Monthly Revenue Goal</div>
+            <div className="text-lg font-semibold text-foreground">
               {trainerGoal.monthly_revenue_goal ? `$${trainerGoal.monthly_revenue_goal.toLocaleString()}` : 'N/A'}
             </div>
           </div>
 
-          <div className="p-3 bg-[#111111] rounded-md">
-            <div className="text-xs text-gray-400 mb-1">Client Goal</div>
-            <div className="text-lg font-semibold text-white">
+          <div className="p-3 bg-card rounded-md">
+            <div className="text-xs text-muted-foreground mb-1">Client Goal</div>
+            <div className="text-lg font-semibold text-foreground">
               {trainerGoal.client_goal ?? 'N/A'}
             </div>
           </div>
 
-          <div className="p-3 bg-[#111111] rounded-md">
-            <div className="text-xs text-gray-400 mb-1">Trained Hours Goal</div>
-            <div className="text-lg font-semibold text-white">
+          <div className="p-3 bg-card rounded-md">
+            <div className="text-xs text-muted-foreground mb-1">Trained Hours Goal</div>
+            <div className="text-lg font-semibold text-foreground">
               {trainerGoal.trained_hours_goal ?? 'N/A'} hrs
             </div>
           </div>
 
-          <div className="p-3 bg-[#111111] rounded-md">
-            <div className="text-xs text-gray-400 mb-1">Daily Booking Goal</div>
-            <div className="text-lg font-semibold text-white">
+          <div className="p-3 bg-card rounded-md">
+            <div className="text-xs text-muted-foreground mb-1">Daily Booking Goal</div>
+            <div className="text-lg font-semibold text-foreground">
               {trainerGoal.daily_booking_goal ?? 'N/A'}
             </div>
           </div>
@@ -166,7 +166,7 @@ export default function TrainerGoals({ trainerId }: TrainerGoalsProps) {
 
         <button
           onClick={() => setIsDialogOpen(true)}
-          className="px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded-md cursor-pointer text-white text-sm"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 rounded-md cursor-pointer text-primary-foreground text-sm"
         >
           Edit Goals
         </button>
@@ -174,15 +174,15 @@ export default function TrainerGoals({ trainerId }: TrainerGoalsProps) {
 
       {/* Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-[#1f1f1f] border-[#2a2a2a] text-white max-w-md">
+        <DialogContent className="bg-card border-border text-card-foreground max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">Trainer Goals</DialogTitle>
+            <DialogTitle className="text-foreground">Trainer Goals</DialogTitle>
           </DialogHeader>
 
           {/* Form */}
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Monthly Revenue Goal ($)
               </label>
               <input
@@ -196,12 +196,12 @@ export default function TrainerGoals({ trainerId }: TrainerGoalsProps) {
                   })
                 }
                 placeholder="e.g. 10000"
-                className="w-full px-3 py-2 bg-[#111111] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Client Goal
               </label>
               <input
@@ -214,12 +214,12 @@ export default function TrainerGoals({ trainerId }: TrainerGoalsProps) {
                   })
                 }
                 placeholder="e.g. 20"
-                className="w-full px-3 py-2 bg-[#111111] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Trained Hours Goal
               </label>
               <input
@@ -233,12 +233,12 @@ export default function TrainerGoals({ trainerId }: TrainerGoalsProps) {
                   })
                 }
                 placeholder="e.g. 100"
-                className="w-full px-3 py-2 bg-[#111111] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Daily Booking Goal
               </label>
               <input
@@ -251,7 +251,7 @@ export default function TrainerGoals({ trainerId }: TrainerGoalsProps) {
                   })
                 }
                 placeholder="e.g. 5"
-                className="w-full px-3 py-2 bg-[#111111] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
@@ -260,13 +260,13 @@ export default function TrainerGoals({ trainerId }: TrainerGoalsProps) {
           <div className="flex gap-2 mt-6">
             <button
               onClick={handleSave}
-              className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded-md cursor-pointer text-white text-sm"
+              className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 rounded-md cursor-pointer text-primary-foreground text-sm"
             >
               Save
             </button>
             <button
               onClick={handleReset}
-              className="px-4 py-2 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white text-sm"
+              className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-md cursor-pointer text-foreground text-sm"
             >
               Cancel
             </button>

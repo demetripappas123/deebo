@@ -9,6 +9,8 @@ export interface Person {
   created_at: string
   converted_at: string | null
   notes?: string | null
+  lead_source?: string | null
+  trainer_id?: string | null
 }
 
 // Re-export types for backward compatibility

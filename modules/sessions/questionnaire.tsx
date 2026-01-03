@@ -19,29 +19,29 @@ export default function Questionnaire({ sessionId, prospectId, onCompletionChang
   }
 
   return (
-    <div className="mt-8 bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6">
+    <div className="mt-8 bg-card border border-border rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-white">Questionnaire</h2>
+        <h2 className="text-2xl font-bold text-foreground">Questionnaire</h2>
         {completed && (
-          <span className="px-3 py-1 bg-green-600 text-white text-sm rounded-md">
+          <span className="px-3 py-1 bg-green-500 text-white text-sm rounded-md">
             Completed
           </span>
         )}
       </div>
       {!completed ? (
         <div>
-          <p className="text-gray-400 mb-4">Questionnaire component will be implemented here.</p>
+          <p className="text-muted-foreground mb-4">Questionnaire component will be implemented here.</p>
           {/* TODO: Implement questionnaire UI */}
           {/* For now, adding a temporary complete button for testing */}
           <button
             onClick={handleComplete}
-            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md cursor-pointer"
+            className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md cursor-pointer"
           >
             Mark as Completed (Temporary)
           </button>
         </div>
       ) : (
-        <p className="text-gray-400">Questionnaire has been completed.</p>
+        <p className="text-muted-foreground">Questionnaire has been completed.</p>
       )}
     </div>
   )

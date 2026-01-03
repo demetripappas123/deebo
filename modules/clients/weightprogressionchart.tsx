@@ -21,6 +21,7 @@ import {
   CommandGroup,
   CommandItem,
 } from '@/components/ui/command'
+import { useTheme } from '@/context/themecontext'
 
 type WeightProgressionChartProps = {
   sessions: SessionWithExercises[]
@@ -36,6 +37,7 @@ type ExerciseDataPoint = {
 const DEFAULT_EXERCISES = ['Squat', 'Bench Press', 'Deadlift']
 
 export default function WeightProgressionChart({ sessions }: WeightProgressionChartProps) {
+  const { variables } = useTheme()
   const [selectedExercises, setSelectedExercises] = useState<string[]>(DEFAULT_EXERCISES)
   const [daysView, setDaysView] = useState<30 | 60 | 90>(90)
   const [exerciseLibrary, setExerciseLibrary] = useState<{ id: string; name: string }[]>([])
@@ -190,8 +192,8 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
             onClick={() => setDaysView(30)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               daysView === 30
-                ? 'bg-orange-500 text-white'
-                : 'bg-[#333333] text-gray-300 hover:bg-[#404040]'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             } cursor-pointer`}
           >
             30 Days
@@ -220,13 +222,13 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
 
         {/* Exercise Search */}
         <div className="relative">
-          <Command className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg">
+          <Command className="bg-card border border-border rounded-lg">
             <CommandInput
               placeholder="Search exercises..."
               value={searchValue}
               onValueChange={setSearchValue}
               onFocus={() => setSearchOpen(true)}
-              className="text-white"
+              className="text-foreground"
             />
             {searchOpen && filteredExercises.length > 0 && (
               <CommandList className="max-h-48">
@@ -237,7 +239,7 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
                       key={exercise.id}
                       value={exercise.name}
                       onSelect={() => addExercise(exercise.name)}
-                      className="text-white hover:bg-[#2a2a2a] cursor-pointer"
+                      className="text-foreground hover:bg-muted cursor-pointer"
                     >
                       {exercise.name}
                     </CommandItem>
@@ -254,16 +256,16 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
         {selectedExercises.map((exerciseName, index) => (
           <div
             key={exerciseName}
-            className="flex items-center gap-2 bg-[#333333] px-3 py-1 rounded-md"
+            className="flex items-center gap-2 bg-secondary px-3 py-1 rounded-md"
           >
             <div
               className="w-3 h-3 rounded-full"
               style={{ backgroundColor: exerciseColors[index % exerciseColors.length] }}
             />
-            <span className="text-sm text-white">{exerciseName}</span>
+            <span className="text-sm text-secondary-foreground">{exerciseName}</span>
             <button
               onClick={() => removeExercise(exerciseName)}
-              className="text-gray-400 hover:text-white cursor-pointer ml-1"
+              className="text-muted-foreground hover:text-foreground cursor-pointer ml-1"
             >
               ×
             </button>
@@ -272,35 +274,35 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
       </div>
 
       {/* Chart */}
-      <div className="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-white mb-4">Weight Progression</h3>
+      <div className="bg-background border border-border rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Weight Progression</h3>
         {chartData.length === 0 || selectedExercises.length === 0 ? (
-          <div className="h-64 flex items-center justify-center text-gray-400">
+          <div className="h-64 flex items-center justify-center text-muted-foreground">
             <p>No weight data available for the selected exercises and period.</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+              <CartesianGrid strokeDasharray="3 3" stroke={variables.border} />
               <XAxis
                 dataKey="formattedDate"
-                stroke="#888888"
+                stroke={variables.mutedForeground}
                 style={{ fontSize: '12px' }}
                 angle={-45}
                 textAnchor="end"
                 height={80}
               />
               <YAxis
-                stroke="#888888"
+                stroke={variables.mutedForeground}
                 style={{ fontSize: '12px' }}
-                label={{ value: 'Weight (lbs)', angle: -90, position: 'insideLeft', style: { fill: '#888888' } }}
+                label={{ value: 'Weight (lbs)', angle: -90, position: 'insideLeft', style: { fill: variables.mutedForeground } }}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#1f1f1f',
-                  border: '1px solid #2a2a2a',
+                  backgroundColor: variables.card,
+                  border: `1px solid ${variables.border}`,
                   borderRadius: '6px',
-                  color: '#ffffff',
+                  color: variables.foreground,
                 }}
                 formatter={(value: number | undefined) => {
                   if (value === null || value === undefined || value === 0) {
@@ -308,10 +310,10 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
                   }
                   return [`${value.toFixed(1)} lbs`, '']
                 }}
-                labelStyle={{ color: '#ffffff' }}
+                labelStyle={{ color: variables.foreground }}
               />
               <Legend
-                wrapperStyle={{ color: '#ffffff', paddingTop: '20px' }}
+                wrapperStyle={{ color: variables.foreground, paddingTop: '20px' }}
               />
               {selectedExercises.map((exerciseName, index) => (
                 <Line

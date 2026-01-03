@@ -32,8 +32,7 @@ export interface WorkoutWithData extends Workout {
  * Uses batch queries instead of sequential queries for better performance
  */
 export async function fetchPersonWorkoutsWithData(personId: string, trainerId?: string | null): Promise<WorkoutWithData[]> {
-  // Step 1: Fetch all completed workouts for this person
-  // First, let's check all workouts to see what we have
+  // Step 1: Fetch all workouts for this person (both completed and incomplete)
   let workoutsQuery = supabase
     .from('workouts')
     .select('*')
@@ -53,13 +52,13 @@ export async function fetchPersonWorkoutsWithData(personId: string, trainerId?: 
     throw allWorkoutsError
   }
 
-  // Filter to only completed workouts
-  const workouts = allWorkouts?.filter(w => w.completed === true) || []
+  // Include all workouts (both completed and incomplete)
+  const workouts = allWorkouts || []
   
-  console.log('Completed workouts:', workouts.length, workouts)
+  console.log('Total workouts (completed + incomplete):', workouts.length, workouts)
 
   if (workouts.length === 0) {
-    console.warn('No completed workouts found for person:', personId)
+    console.warn('No workouts found for person:', personId)
     return []
   }
 

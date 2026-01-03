@@ -1,19 +1,28 @@
 import { supabase } from '../supabaseClient'
 import { fetchPersonPackages } from './fetchpersonpackages'
+import { DateRangeBounds } from '../utils/daterange'
 
 /**
- * Calculate MTD (Month To Date) revenue
- * Sum of all payments from the current month
+ * Calculate revenue from payments
+ * Sum of all payments within the specified date range
+ * If no date range provided, defaults to current month (MTD)
  * Optionally filter by trainer_id (through person_packages)
  */
-export async function fetchTotalRevenue(trainerId?: string | null): Promise<number> {
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+export async function fetchTotalRevenue(trainerId?: string | null, dateRange?: DateRangeBounds): Promise<number> {
+  // Use provided date range or default to current month
+  let startDate: string
+  let endDate: string
   
-  // Format dates for Supabase query (ISO string)
-  const startDate = startOfMonth.toISOString()
-  const endDate = endOfMonth.toISOString()
+  if (dateRange) {
+    startDate = dateRange.start.toISOString()
+    endDate = dateRange.end.toISOString()
+  } else {
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+    startDate = startOfMonth.toISOString()
+    endDate = endOfMonth.toISOString()
+  }
   
   // If trainerId is provided, we need to filter through person_packages
   if (trainerId) {

@@ -31,22 +31,22 @@ export default function ShowPrograms() {
     refreshPrograms()
   }, [user])
 
-  if (loading) return <p className="text-gray-300">Loading programs...</p>
-  if (programs.length === 0) return <p className="text-gray-300">No programs found.</p>
+  if (loading) return <p className="text-muted-foreground">Loading programs...</p>
+  if (programs.length === 0) return <p className="text-muted-foreground">No programs found.</p>
 
   return (
     <div className="space-y-4">
       {programs.map((program) => (
         <div
           key={program.id}
-          className="flex items-center justify-between bg-[#1f1f1f] border border-[#2a2a2a] rounded-md shadow hover:bg-[#262626] transition-colors"
+          className="flex items-center justify-between bg-card border border-border rounded-md shadow hover:bg-muted transition-colors"
         >
           {/* Entire left side clickable */}
           <div
             className="flex-1 p-4 cursor-pointer"
             onClick={() => router.push(`/programs/${program.id}`)}
           >
-            <h3 className="text-lg font-semibold text-white">{program.name}</h3>
+            <h3 className="text-lg font-semibold text-foreground">{program.name}</h3>
           </div>
 
           {/* Trash icon trigger */}

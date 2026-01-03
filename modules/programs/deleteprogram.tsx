@@ -39,10 +39,10 @@ export default function DeleteProgramDialog({
       </div>
 
       {isDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-[#1f1f1f] p-6 rounded-lg shadow-lg w-96 border border-[#2a2a2a]">
-            <h2 className="text-xl font-bold text-white mb-4">Delete Program</h2>
-            <p className="text-gray-300 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="bg-card p-6 rounded-lg shadow-lg w-96 border border-border">
+            <h2 className="text-xl font-bold text-foreground mb-4">Delete Program</h2>
+            <p className="text-muted-foreground mb-4">
               Are you sure you want to delete <span className="font-semibold">{programName}</span>? This action cannot be undone.
             </p>
 
@@ -50,14 +50,14 @@ export default function DeleteProgramDialog({
               <button
                 type="button"
                 onClick={() => setIsDialogOpen(false)}
-                className="px-4 py-2 bg-[#333333] text-white rounded-md hover:bg-[#404040] transition-colors cursor-pointer"
+                className="px-4 py-2 bg-muted text-foreground rounded-md hover:bg-muted/80 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
                 disabled={isLoading}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white font-semibold rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-destructive hover:bg-destructive/90 disabled:bg-destructive/50 text-destructive-foreground font-semibold rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Deleting...' : 'Delete'}
               </button>

@@ -123,15 +123,15 @@ export default function Payments({ payments, personPackages, packages, personId,
   }
 
   return (
-    <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
+    <div className="p-4 bg-card border border-border rounded-md">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-white">Payments</h2>
+        <h2 className="text-lg font-semibold text-foreground">Payments</h2>
         <Button
           onClick={() => {
             resetForm()
             setShowAddForm(true)
           }}
-          className="bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
           size="sm"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -141,14 +141,14 @@ export default function Payments({ payments, personPackages, packages, personId,
 
       {/* Add/Edit Payment Form */}
       {showAddForm && (
-        <div className="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4 mb-4">
+        <div className="bg-background border border-border rounded-lg p-4 mb-4">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-md font-semibold text-white">
+            <h3 className="text-md font-semibold text-foreground">
               {editingPaymentId ? 'Edit Payment' : 'Add New Payment'}
             </h3>
             <button
               onClick={resetForm}
-              className="text-gray-400 hover:text-white cursor-pointer"
+              className="text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
@@ -156,7 +156,7 @@ export default function Payments({ payments, personPackages, packages, personId,
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1 text-gray-400">
+                <label className="block text-sm font-medium mb-1 text-muted-foreground">
                   Amount ($) *
                 </label>
                 <Input
@@ -166,19 +166,19 @@ export default function Payments({ payments, personPackages, packages, personId,
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="bg-[#1f1f1f] text-white border-[#2a2a2a] placeholder-gray-400 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                  className="bg-input text-foreground border-border placeholder-muted-foreground [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1 text-gray-400">
+                <label className="block text-sm font-medium mb-1 text-muted-foreground">
                   Payment Date *
                 </label>
                 <Input
                   type="date"
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
-                  className="bg-[#1f1f1f] text-white border-[#2a2a2a] cursor-pointer"
+                  className="bg-input text-foreground border-border cursor-pointer"
                   required
                 />
               </div>
@@ -192,7 +192,7 @@ export default function Payments({ payments, personPackages, packages, personId,
                 value={method}
                 onChange={(e) => setMethod(e.target.value)}
                 placeholder="e.g., Credit Card, Cash, Bank Transfer"
-                className="bg-[#1f1f1f] text-white border-[#2a2a2a] placeholder-gray-400"
+                className="bg-input text-foreground border-border placeholder-muted-foreground"
               />
             </div>
             <div>
@@ -204,7 +204,7 @@ export default function Payments({ payments, personPackages, packages, personId,
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Optional notes about this payment"
-                className="bg-[#1f1f1f] text-white border-[#2a2a2a] placeholder-gray-400"
+                className="bg-input text-foreground border-border placeholder-muted-foreground"
               />
             </div>
             <div className="flex gap-2">
@@ -219,7 +219,7 @@ export default function Payments({ payments, personPackages, packages, personId,
               <Button
                 onClick={resetForm}
                 variant="outline"
-                className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+                className="bg-muted hover:bg-muted/80 text-foreground border-border cursor-pointer"
                 size="sm"
               >
                 Cancel
@@ -231,10 +231,10 @@ export default function Payments({ payments, personPackages, packages, personId,
 
       {/* Payments List */}
       {payments.length === 0 ? (
-        <p className="text-gray-400 text-sm">No payments recorded for this client.</p>
+        <p className="text-muted-foreground text-sm">No payments recorded for this client.</p>
       ) : (
         <div className="space-y-3">
-          <div className="grid grid-cols-6 gap-4 text-sm font-semibold text-gray-400 pb-2 border-b border-[#2a2a2a]">
+          <div className="grid grid-cols-6 gap-4 text-sm font-semibold text-muted-foreground pb-2 border-b border-border">
             <div>Date</div>
             <div>Amount</div>
             <div>Method</div>
@@ -247,7 +247,7 @@ export default function Payments({ payments, personPackages, packages, personId,
             const packageData = associatedPackage ? packages.find(pkg => pkg.id === associatedPackage.package_id) : null
             
             return (
-              <div key={payment.id} className="grid grid-cols-6 gap-4 text-sm text-gray-300 py-2 border-b border-[#2a2a2a] items-center">
+              <div key={payment.id} className="grid grid-cols-6 gap-4 text-sm text-muted-foreground py-2 border-b border-border items-center">
                 <div>
                   {new Date(payment.payment_date).toLocaleDateString()}
                 </div>
@@ -266,14 +266,14 @@ export default function Payments({ payments, personPackages, packages, personId,
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleEdit(payment)}
-                    className="text-gray-400 hover:text-orange-500 cursor-pointer"
+                    className="text-muted-foreground hover:text-primary cursor-pointer"
                     title="Edit payment"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(payment.id)}
-                    className="text-gray-400 hover:text-red-500 cursor-pointer"
+                    className="text-muted-foreground hover:text-destructive cursor-pointer"
                     title="Delete payment"
                   >
                     <Trash className="h-4 w-4" />

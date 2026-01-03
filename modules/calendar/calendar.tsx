@@ -11,10 +11,12 @@ import { useRouter } from 'next/navigation'
 import { fetchSessions, Session } from '@/supabase/fetches/fetchsessions'
 import { fetchClients } from '@/supabase/fetches/fetchpeople'
 import { fetchProspects } from '@/supabase/fetches/fetchpeople'
+import { useTheme } from '@/context/themecontext'
 
 export default function Calendar() {
   const [events, setEvents] = useState<EventInput[]>([])
   const router = useRouter()
+  const { variables } = useTheme()
 
   useEffect(() => {
     const loadSessions = async () => {
@@ -73,94 +75,114 @@ export default function Calendar() {
     // Trigger Add Event dialog here
   }
 
+  const bgColor = variables.background
+  const cardColor = variables.card
+  const textColor = variables.foreground
+  const borderColor = variables.border
+  const mutedColor = variables.muted
+  const mutedHoverColor = variables.muted
+  const mutedActiveColor = variables.muted
+  const mutedTextColor = variables.mutedForeground
+  const disabledBgColor = variables.muted
+  const disabledTextColor = variables.mutedForeground
+  const eventBorderColor = variables.border
+  const scrollbarThumbColor = variables.muted
+  const scrollbarThumbHoverColor = variables.mutedForeground
+  const primaryColor = variables.primary
+  const primaryForegroundColor = variables.primaryForeground
+
   return (
-    <div className="p-4 bg-[#111111] rounded shadow text-white h-full">
+    <div className="p-4 bg-card rounded shadow text-foreground h-full">
       <style jsx global>{`
         /* Calendar container */
         .fc {
-          background-color: #111111 !important;
-          color: white !important;
+          background-color: ${bgColor} !important;
+          color: ${textColor} !important;
         }
         
         /* Header toolbar */
         .fc-header-toolbar {
-          background-color: #111111 !important;
-          color: white !important;
-          border-color: #2a2a2a !important;
+          background-color: ${cardColor} !important;
+          color: ${textColor} !important;
+          border-color: ${borderColor} !important;
+          padding: 1rem !important;
+          margin-bottom: 1rem !important;
         }
         
         .fc-toolbar-title {
-          color: white !important;
+          color: ${textColor} !important;
+          font-weight: 600 !important;
         }
         
         /* Buttons */
         .fc-button {
-          background-color: #333333 !important;
-          border-color: #2a2a2a !important;
-          color: white !important;
+          background-color: ${mutedColor} !important;
+          border-color: ${borderColor} !important;
+          color: ${textColor} !important;
         }
         
         .fc-button:hover {
-          background-color: #404040 !important;
-          border-color: #2a2a2a !important;
+          background-color: ${mutedHoverColor} !important;
+          border-color: ${borderColor} !important;
         }
         
         .fc-button-active {
-          background-color: #4a4a4a !important;
-          border-color: #2a2a2a !important;
+          background-color: ${primaryColor} !important;
+          border-color: ${primaryColor} !important;
+          color: ${primaryForegroundColor} !important;
         }
         
         .fc-button:disabled {
-          background-color: #1a1a1a !important;
-          border-color: #2a2a2a !important;
-          color: #666666 !important;
+          background-color: ${disabledBgColor} !important;
+          border-color: ${borderColor} !important;
+          color: ${disabledTextColor} !important;
         }
         
         /* Calendar grid */
         .fc-daygrid {
-          background-color: #111111 !important;
+          background-color: ${cardColor} !important;
         }
         
         .fc-col-header {
-          background-color: #111111 !important;
+          background-color: ${cardColor} !important;
         }
         
         .fc-col-header-cell {
-          background-color: #111111 !important;
-          color: white !important;
-          border-color: #2a2a2a !important;
+          background-color: ${cardColor} !important;
+          color: ${textColor} !important;
+          border-color: ${borderColor} !important;
         }
         
         .fc-col-header-cell-cushion {
-          color: white !important;
+          color: ${textColor} !important;
         }
         
         /* Day cells */
         .fc-daygrid-day {
-          background-color: #111111 !important;
-          border-color: #2a2a2a !important;
+          background-color: ${cardColor} !important;
+          border-color: ${borderColor} !important;
         }
         
         .fc-daygrid-day-frame {
-          background-color: #111111 !important;
+          background-color: ${cardColor} !important;
         }
         
         .fc-daygrid-day-top {
-          color: white !important;
+          color: ${textColor} !important;
         }
         
         .fc-daygrid-day-number {
-          color: white !important;
+          color: ${textColor} !important;
         }
         
         .fc-day-today {
-          background-color: #1a1a1a !important;
+          background-color: ${cardColor} !important;
         }
         
         /* Events */
         .fc-event {
           cursor: pointer;
-          border-color: #444444 !important;
+          border-color: ${eventBorderColor} !important;
         }
         
         .fc-event:hover {
@@ -168,39 +190,44 @@ export default function Calendar() {
         }
         
         .fc-event-title {
-          color: white !important;
+          color: ${textColor} !important;
         }
         
         .fc-event-time {
-          color: #cccccc !important;
+          color: ${mutedTextColor} !important;
         }
         
         /* Time grid */
         .fc-timegrid {
-          background-color: #111111 !important;
+          background-color: ${cardColor} !important;
         }
         
         .fc-timegrid-slot {
-          border-color: #2a2a2a !important;
+          border-color: ${borderColor} !important;
         }
         
         .fc-timegrid-slot-label {
-          color: white !important;
-          border-color: #2a2a2a !important;
+          color: ${textColor} !important;
+          border-color: ${borderColor} !important;
         }
         
         .fc-timegrid-axis {
-          border-color: #2a2a2a !important;
-          color: white !important;
+          border-color: ${borderColor} !important;
+          color: ${textColor} !important;
+          background-color: ${cardColor} !important;
         }
         
         .fc-timegrid-col {
-          border-color: #2a2a2a !important;
+          border-color: ${borderColor} !important;
+        }
+        
+        .fc-timegrid-col-frame {
+          background-color: ${cardColor} !important;
         }
         
         /* Selected/highlighted */
         .fc-highlight {
-          background-color: #2a2a2a !important;
+          background-color: ${mutedColor} !important;
         }
         
         /* Scrollbar styling */
@@ -210,16 +237,16 @@ export default function Calendar() {
         }
         
         .fc-scroller::-webkit-scrollbar-track {
-          background: #111111;
+          background: ${bgColor};
         }
         
         .fc-scroller::-webkit-scrollbar-thumb {
-          background: #444444;
+          background: ${scrollbarThumbColor};
           border-radius: 4px;
         }
         
         .fc-scroller::-webkit-scrollbar-thumb:hover {
-          background: #555555;
+          background: ${scrollbarThumbHoverColor};
         }
       `}</style>
       <FullCalendar

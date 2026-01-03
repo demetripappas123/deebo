@@ -1,17 +1,31 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   RadialBarChart,
   RadialBar,
   ResponsiveContainer,
 } from 'recharts'
+import { useTheme } from '@/context/themecontext'
 
 type CloseRateChartProps = {
   closeRate: number // Percentage 0-100
 }
 
 export default function CloseRateChart({ closeRate }: CloseRateChartProps) {
+  const { theme } = useTheme()
+  const [bgColor, setBgColor] = useState('#2a2a2a')
+
+  useEffect(() => {
+    const root = document.documentElement
+    const computedStyle = getComputedStyle(root)
+    // Use card or muted color for background circle
+    const color = computedStyle.getPropertyValue('--color-muted').trim() || 
+                  computedStyle.getPropertyValue('--muted').trim() ||
+                  computedStyle.getPropertyValue('--color-card').trim() ||
+                  computedStyle.getPropertyValue('--card').trim()
+    setBgColor(color || '#2a2a2a')
+  }, [theme])
   // Determine color based on percentage (red to green)
   const getColor = (percentage: number): string => {
     if (percentage >= 80) return '#22c55e' // green-500
@@ -27,7 +41,8 @@ export default function CloseRateChart({ closeRate }: CloseRateChartProps) {
   // Start at 90 (top), go clockwise
   // 0% = 90, 50% = -90 (semicircle), 100% = -270 (full circle)
   const startAngle = 90
-  const endAngle = 90 - (360 * closeRate / 100)
+  // Ensure endAngle is always less than startAngle, even for 0%
+  const endAngle = closeRate === 0 ? 90.1 : 90 - (360 * closeRate / 100)
   
   const data = [
     {
@@ -42,14 +57,13 @@ export default function CloseRateChart({ closeRate }: CloseRateChartProps) {
     {
       name: 'Background',
       value: 100,
-      fill: '#2a2a2a', // Dark gray background
+      fill: bgColor, // Theme-aware background
     },
   ]
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-4">
-      <h3 className="text-lg font-semibold text-white mb-2">Close Rate</h3>
-      <div className="relative w-full max-w-[280px] h-[280px]">
+    <div className="w-full h-full flex flex-col items-center justify-center">
+      <div className="relative w-full max-w-[100px] h-[100px]">
         <ResponsiveContainer width="100%" height="100%">
           <RadialBarChart
             innerRadius="60%"
@@ -74,13 +88,14 @@ export default function CloseRateChart({ closeRate }: CloseRateChartProps) {
         </ResponsiveContainer>
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-2xl font-bold" style={{ color }}>
+            <div className="text-sm font-bold text-[var(--text-primary)]">
               {closeRate.toFixed(1)}%
             </div>
-            <div className="text-[10px] text-gray-400 mt-1">Prospects → Clients</div>
           </div>
         </div>
       </div>
+      <h3 className="text-xs font-semibold text-[var(--text-primary)] mt-1">Close Rate</h3>
+      <div className="text-[9px] text-[var(--text-secondary)] mt-0.5">Prospects → Clients</div>
     </div>
   )
 }

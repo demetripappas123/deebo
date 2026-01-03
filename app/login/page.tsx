@@ -83,8 +83,8 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#111111] flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-foreground">Loading...</div>
       </div>
     )
   }
@@ -94,17 +94,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#111111] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-8">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-card border border-border rounded-lg p-8">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-white mb-2">TurboTrain</h1>
-          <p className="text-gray-400">
+          <h1 className="text-3xl font-bold text-foreground mb-2">TurboTrain</h1>
+          <p className="text-muted-foreground">
             {isSignUp ? 'Create a new account' : 'Sign in to your account'}
           </p>
         </div>
 
         {/* Toggle between Sign In and Sign Up */}
-        <div className="flex mb-6 bg-[#111111] rounded-lg p-1">
+        <div className="flex mb-6 bg-background rounded-lg p-1">
           <button
             type="button"
             onClick={() => {
@@ -115,8 +115,8 @@ export default function LoginPage() {
             }}
             className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
               !isSignUp
-                ? 'bg-orange-500 text-white'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             disabled={isLoading}
           >
@@ -131,8 +131,8 @@ export default function LoginPage() {
             }}
             className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
               isSignUp
-                ? 'bg-orange-500 text-white'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             disabled={isLoading}
           >
@@ -155,7 +155,7 @@ export default function LoginPage() {
 
             {isSignUp && (
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1">
+                <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-1">
                   Name
                 </label>
                 <Input
@@ -164,7 +164,7 @@ export default function LoginPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required={isSignUp}
-                  className="bg-[#111111] border-[#2a2a2a] text-white"
+                  className="bg-input border-border text-foreground"
                   placeholder="Your name"
                   disabled={isLoading}
                 />
@@ -172,7 +172,7 @@ export default function LoginPage() {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-muted-foreground mb-1">
                 Email
               </label>
             <Input
@@ -181,14 +181,14 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="bg-[#111111] border-[#2a2a2a] text-white"
+              className="bg-input border-border text-foreground"
               placeholder="you@example.com"
               disabled={isLoading}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="password" className="block text-sm font-medium text-muted-foreground mb-1">
               Password
             </label>
             <Input
@@ -197,20 +197,20 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="bg-[#111111] border-[#2a2a2a] text-white"
+              className="bg-input border-border text-foreground"
               placeholder="••••••••"
               disabled={isLoading}
               minLength={6}
             />
             {isSignUp && (
-              <p className="mt-1 text-xs text-gray-500">Password must be at least 6 characters</p>
+              <p className="mt-1 text-xs text-muted-foreground">Password must be at least 6 characters</p>
             )}
           </div>
 
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
           >
             {isLoading
               ? isSignUp

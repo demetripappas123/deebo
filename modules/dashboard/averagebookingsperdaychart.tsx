@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react'
 import { fetchAverageBookingsPerDay } from '@/supabase/fetches/fetchaveragebookingsperday'
 
 type AverageBookingsPerDayChartProps = {
-  // This component will fetch its own data
+  compact?: boolean
 }
 
-export default function AverageBookingsPerDayChart({}: AverageBookingsPerDayChartProps) {
+export default function AverageBookingsPerDayChart({ compact = false }: AverageBookingsPerDayChartProps) {
   const [timeframe, setTimeframe] = useState<'week' | 'month'>('week')
   const [averageBookings, setAverageBookings] = useState<number>(0)
   const [loading, setLoading] = useState(true)
@@ -30,16 +30,28 @@ export default function AverageBookingsPerDayChart({}: AverageBookingsPerDayChar
     loadData()
   }, [timeframe])
 
+  if (compact) {
+    return (
+      <>
+        {loading ? (
+          <div className="h-8 bg-muted rounded animate-pulse"></div>
+        ) : (
+          <p className="text-2xl font-bold text-foreground">{averageBookings.toFixed(1)}</p>
+        )}
+      </>
+    )
+  }
+
   return (
     <div className="w-full h-full flex flex-col p-4">
-      <h3 className="text-lg font-semibold text-white mb-4">Avg Bookings/Day</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-4">Avg Bookings/Day</h3>
       <div className="flex-1 flex items-center justify-center">
         {loading ? (
-          <div className="text-gray-400">Loading...</div>
+          <div className="text-muted-foreground">Loading...</div>
         ) : (
           <div className="text-center w-full">
             <div className="text-5xl font-bold text-orange-500">{averageBookings.toFixed(1)}</div>
-            <div className="text-xs text-gray-400 mt-2 mb-4">
+            <div className="text-xs text-muted-foreground mt-2 mb-4">
               Average per day ({timeframe === 'week' ? 'past 7 days' : 'past 30 days'})
             </div>
             <div className="flex gap-2 justify-center">
@@ -47,8 +59,8 @@ export default function AverageBookingsPerDayChart({}: AverageBookingsPerDayChar
                 onClick={() => setTimeframe('week')}
                 className={`px-3 py-1 text-sm rounded-md transition-colors cursor-pointer ${
                   timeframe === 'week'
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-[#2a2a2a] text-gray-400 hover:bg-[#333333]'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
                 Week
@@ -57,8 +69,8 @@ export default function AverageBookingsPerDayChart({}: AverageBookingsPerDayChar
                 onClick={() => setTimeframe('month')}
                 className={`px-3 py-1 text-sm rounded-md transition-colors cursor-pointer ${
                   timeframe === 'month'
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-[#2a2a2a] text-gray-400 hover:bg-[#333333]'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
                 Month

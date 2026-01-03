@@ -124,7 +124,7 @@ export default function EventPage() {
 
   if (loading) {
     return (
-      <main className="p-8 text-white bg-[#111111] min-h-screen">
+      <main className="p-8 text-foreground bg-background min-h-screen">
         <div>Loading...</div>
       </main>
     )
@@ -162,47 +162,47 @@ export default function EventPage() {
   // Handle completed or cancelled status - show prescribed vs actual sets
   if (isCompleted || isCancelled) {
     return (
-      <main className="p-8 text-white bg-[#111111] min-h-screen">
+      <main className="p-8 text-foreground bg-background min-h-screen">
         <div className="flex items-center gap-4 mb-4">
-          <h1 className="text-3xl font-bold">{session.type}</h1>
+          <h1 className="text-3xl font-bold text-foreground">{session.type}</h1>
           {isCancelled && (
             <span className={`px-3 py-1 rounded-md text-sm font-semibold ${
               session.status === 'canceled_with_charge'
-                ? 'bg-red-600/20 text-red-400 border border-red-600/50' 
-                : 'bg-orange-600/20 text-orange-400 border border-orange-600/50'
+                ? 'bg-destructive/20 text-destructive border border-destructive/50' 
+                : 'bg-primary/20 text-primary border border-primary/50'
             }`}>
               {session.status === 'canceled_with_charge' ? 'Cancelled (With Charge)' : 'Cancelled (No Charge)'}
             </span>
           )}
         </div>
 
-        <div className="space-y-2 text-gray-300 mb-8">
+        <div className="space-y-2 text-muted-foreground mb-8">
           <p>
-            <span className="font-semibold text-white">Scheduled:</span> {session.start_time ? new Date(session.start_time).toLocaleString() : 'No date'}
+            <span className="font-semibold text-foreground">Scheduled:</span> {session.start_time ? new Date(session.start_time).toLocaleString() : 'No date'}
           </p>
           {session.started_at && (
             <p>
-              <span className="font-semibold text-white">Started:</span> {new Date(session.started_at).toLocaleString()}
+              <span className="font-semibold text-foreground">Started:</span> {new Date(session.started_at).toLocaleString()}
             </p>
           )}
           {(() => {
             const duration = calculateDuration(session.started_at, session.end_time)
             return duration !== null ? (
               <p>
-                <span className="font-semibold text-white">Duration:</span> {duration} minutes
+                <span className="font-semibold text-foreground">Duration:</span> {duration} minutes
               </p>
             ) : null
           })()}
           <p>
-            <span className="font-semibold text-white">Status:</span>{' '}
+            <span className="font-semibold text-foreground">Status:</span>{' '}
             {isCancelled ? (
               <span className={`capitalize ${
-                session.status === 'canceled_with_charge' ? 'text-red-400' : 'text-orange-400'
+                session.status === 'canceled_with_charge' ? 'text-destructive' : 'text-primary'
               }`}>
                 {session.status === 'canceled_with_charge' ? 'Cancelled (With Charge)' : 'Cancelled (No Charge)'}
               </span>
             ) : (
-              <span className="capitalize text-green-400">Completed</span>
+              <span className="capitalize text-green-500">Completed</span>
             )}
           </p>
         </div>
@@ -270,7 +270,7 @@ export default function EventPage() {
                 }
               }}
               disabled={converting}
-              className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer disabled:bg-blue-400 disabled:cursor-not-allowed"
+              className="bg-blue-500 hover:bg-blue-600 text-white cursor-pointer disabled:bg-blue-400 disabled:cursor-not-allowed"
             >
               <UserCheck className="h-4 w-4 mr-2" />
               {converting ? 'Converting...' : 'Convert to Client'}
@@ -280,22 +280,22 @@ export default function EventPage() {
 
         {/* Display completed workout with actual sets */}
         {session.exercises && session.exercises.length > 0 ? (
-          <div className="mt-8 bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6">
-            <h2 className="text-2xl font-bold text-white mb-6">Completed Workout</h2>
+          <div className="mt-8 bg-card border border-border rounded-lg p-6">
+            <h2 className="text-2xl font-bold text-foreground mb-6">Completed Workout</h2>
             <div className="space-y-6">
               {session.exercises.map((exercise, idx) => (
-                <div key={exercise.id || idx} className="bg-[#111111] rounded-md p-4">
+                <div key={exercise.id || idx} className="bg-background rounded-md p-4">
                   <div className="mb-4">
-                    <h3 className="text-lg font-semibold text-white mb-2">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">
                       {exercise.position + 1}. {exercise.exercise_name || 'Unknown Exercise'}
                     </h3>
                     {exercise.notes && (
-                      <p className="text-sm text-gray-400">{exercise.notes}</p>
+                      <p className="text-sm text-muted-foreground">{exercise.notes}</p>
                     )}
                   </div>
                   {exercise.sets && exercise.sets.length > 0 && (
                     <div className="space-y-2">
-                      <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-gray-400 pb-2 border-b border-[#2a2a2a]">
+                      <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-muted-foreground pb-2 border-b border-border">
                         <div>Set</div>
                         <div>Weight</div>
                         <div>Reps</div>
@@ -304,12 +304,12 @@ export default function EventPage() {
                         <div>Notes</div>
                       </div>
                       {exercise.sets.map((set, setIdx) => (
-                        <div key={set.id || setIdx} className="grid grid-cols-6 gap-2 text-sm text-gray-300">
+                        <div key={set.id || setIdx} className="grid grid-cols-6 gap-2 text-sm text-muted-foreground">
                           <div>{set.set_number}</div>
-                          <div className={set.weight !== null ? 'text-white font-medium' : ''}>{set.weight ?? '-'}</div>
-                          <div className={set.reps !== null ? 'text-white font-medium' : ''}>{set.reps ?? '-'}</div>
-                          <div className={set.rir !== null ? 'text-white font-medium' : ''}>{set.rir ?? '-'}</div>
-                          <div className={set.rpe !== null ? 'text-white font-medium' : ''}>{set.rpe ?? '-'}</div>
+                          <div className={set.weight !== null ? 'text-foreground font-medium' : ''}>{set.weight ?? '-'}</div>
+                          <div className={set.reps !== null ? 'text-foreground font-medium' : ''}>{set.reps ?? '-'}</div>
+                          <div className={set.rir !== null ? 'text-foreground font-medium' : ''}>{set.rir ?? '-'}</div>
+                          <div className={set.rpe !== null ? 'text-foreground font-medium' : ''}>{set.rpe ?? '-'}</div>
                           <div className="text-xs">{set.notes || '-'}</div>
                         </div>
                       ))}
@@ -320,9 +320,9 @@ export default function EventPage() {
             </div>
           </div>
         ) : (
-          <div className="mt-8 bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6">
-            <h2 className="text-2xl font-bold text-white mb-2">Completed Workout</h2>
-            <p className="text-gray-400">No workout data available for this session.</p>
+          <div className="mt-8 bg-card border border-border rounded-lg p-6">
+            <h2 className="text-2xl font-bold text-foreground mb-2">Completed Workout</h2>
+            <p className="text-muted-foreground">No workout data available for this session.</p>
           </div>
         )}
       </main>
@@ -331,34 +331,34 @@ export default function EventPage() {
 
   // Handle pending status - show normal UI
   return (
-    <main className="p-8 text-white bg-[#111111] min-h-screen">
+    <main className="p-8 text-foreground bg-background min-h-screen">
       <div className="flex items-center gap-4 mb-4">
-        <h1 className="text-3xl font-bold">{session.type}</h1>
+        <h1 className="text-3xl font-bold text-foreground">{session.type}</h1>
         {session.cancelled && (
           <span className={`px-3 py-1 rounded-md text-sm font-semibold ${
             session.cancelled_with_charge 
-              ? 'bg-red-600/20 text-red-400 border border-red-600/50' 
-              : 'bg-orange-600/20 text-orange-400 border border-orange-600/50'
+              ? 'bg-destructive/20 text-destructive border border-destructive/50' 
+              : 'bg-primary/20 text-primary border border-primary/50'
           }`}>
             {session.cancelled_with_charge ? 'Cancelled (With Charge)' : 'Cancelled (No Charge)'}
           </span>
         )}
       </div>
 
-      <div className="space-y-2 text-gray-300">
+      <div className="space-y-2 text-muted-foreground">
         <p>
-          <span className="font-semibold text-white">Scheduled:</span> {session.start_time ? new Date(session.start_time).toLocaleString() : 'No date'}
+          <span className="font-semibold text-foreground">Scheduled:</span> {session.start_time ? new Date(session.start_time).toLocaleString() : 'No date'}
         </p>
         <p>
-          <span className="font-semibold text-white">Status:</span>{' '}
+          <span className="font-semibold text-foreground">Status:</span>{' '}
           {isCancelled ? (
             <span className={`capitalize ${
-              session.status === 'canceled_with_charge' ? 'text-red-400' : 'text-orange-400'
+              session.status === 'canceled_with_charge' ? 'text-destructive' : 'text-primary'
             }`}>
               {session.status === 'canceled_with_charge' ? 'Cancelled (With Charge)' : 'Cancelled (No Charge)'}
             </span>
           ) : (
-            <span className="capitalize text-yellow-400">Pending</span>
+            <span className="capitalize text-yellow-500">Pending</span>
           )}
         </p>
       </div>
@@ -369,7 +369,7 @@ export default function EventPage() {
             onClick={() => {
               setAssignWorkoutOpen(true)
             }}
-            className="bg-[#f97316] hover:bg-[#ea6820] text-white cursor-pointer"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
           >
             Assign Workout
           </Button>
@@ -378,20 +378,20 @@ export default function EventPage() {
 
       {/* Display assigned workout */}
       {session && session.workout_id && (
-        <div className="mt-8 bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6 relative">
+        <div className="mt-8 bg-card border border-border rounded-lg p-6 relative">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white">Assigned Workout</h2>
+            <h2 className="text-2xl font-bold text-foreground">Assigned Workout</h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setEditWorkoutOpen(true)}
-                className="p-2 text-gray-400 hover:text-white cursor-pointer transition-colors"
+                className="p-2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                 title="Edit Workout"
               >
                 <PencilIcon className="h-5 w-5" />
               </button>
               <button
                 onClick={() => setDeleteDialogOpen(true)}
-                className="p-2 text-red-500 hover:text-red-600 cursor-pointer transition-colors"
+                className="p-2 text-destructive hover:text-destructive/80 cursor-pointer transition-colors"
                 title="Unassign Workout"
               >
                 <TrashIcon className="h-5 w-5" />
@@ -401,18 +401,18 @@ export default function EventPage() {
           {session.exercises && session.exercises.length > 0 ? (
             <div className="space-y-6">
               {session.exercises.map((exercise, idx) => (
-              <div key={exercise.id || idx} className="bg-[#111111] rounded-md p-4">
+              <div key={exercise.id || idx} className="bg-background rounded-md p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-white">
+                  <h3 className="text-lg font-semibold text-foreground">
                     {exercise.position + 1}. {exercise.exercise_name || 'Unknown Exercise'}
                   </h3>
                   {exercise.notes && (
-                    <p className="text-sm text-gray-400">{exercise.notes}</p>
+                    <p className="text-sm text-muted-foreground">{exercise.notes}</p>
                   )}
                 </div>
                 {exercise.sets && exercise.sets.length > 0 && (
                   <div className="space-y-2">
-                    <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-gray-400 pb-2 border-b border-[#2a2a2a]">
+                    <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-muted-foreground pb-2 border-b border-border">
                       <div>Set</div>
                       <div>Weight</div>
                       <div>Reps</div>
@@ -421,7 +421,7 @@ export default function EventPage() {
                       <div>Notes</div>
                     </div>
                     {exercise.sets.map((set, setIdx) => (
-                      <div key={set.id || setIdx} className="grid grid-cols-6 gap-2 text-sm text-gray-300">
+                      <div key={set.id || setIdx} className="grid grid-cols-6 gap-2 text-sm text-muted-foreground">
                         <div>{set.set_number}</div>
                         <div>{set.weight ?? '-'}</div>
                         <div>{set.reps ?? '-'}</div>
@@ -436,7 +436,7 @@ export default function EventPage() {
               ))}
             </div>
           ) : (
-            <div className="text-gray-400 text-center py-8">
+            <div className="text-muted-foreground text-center py-8">
               <p>No exercises assigned yet. Click the pencil icon to add exercises.</p>
             </div>
           )}
@@ -462,7 +462,7 @@ export default function EventPage() {
             (!isProspectSession && session && session.exercises && session.exercises.length > 0)) && (
             <Button
               onClick={() => setStartSessionOpen(true)}
-              className="w-full bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+              className="w-full bg-green-500 hover:bg-green-600 text-white cursor-pointer"
             >
               Start Session
             </Button>
@@ -470,7 +470,7 @@ export default function EventPage() {
           {/* Cancel Session button - only visible if not already cancelled */}
           <Button
             onClick={() => setCancelDialogOpen(true)}
-            className="w-full bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+            className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground cursor-pointer"
           >
             Cancel Session
           </Button>
@@ -585,10 +585,10 @@ export default function EventPage() {
 
       {/* Unassign Workout Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="bg-[#1f1f1f] border-[#2a2a2a] text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-white">Unassign Workout</DialogTitle>
-            <DialogDescription className="text-gray-300">
+            <DialogTitle className="text-foreground">Unassign Workout</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Are you sure you want to unassign this workout from the session? The session will be kept, but the workout will no longer be associated with it. The workout data will remain in the database for history purposes.
             </DialogDescription>
           </DialogHeader>
@@ -597,7 +597,7 @@ export default function EventPage() {
               type="button"
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
-              className="cursor-pointer bg-[#333333] text-white border-[#2a2a2a] hover:bg-[#404040] hover:text-white"
+              className="cursor-pointer bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
             >
               Cancel
             </Button>
@@ -658,7 +658,7 @@ export default function EventPage() {
                   alert(`Error unassigning workout: ${error instanceof Error ? error.message : 'Please try again.'}`)
                 }
               }}
-              className="cursor-pointer bg-red-600 hover:bg-red-700 text-white"
+              className="cursor-pointer bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               Unassign Workout
             </Button>
@@ -668,10 +668,10 @@ export default function EventPage() {
 
       {/* Cancel Session Dialog */}
       <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent className="bg-[#1f1f1f] border-[#2a2a2a] text-white">
+        <DialogContent className="bg-card border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-white">Cancel Session</DialogTitle>
-            <DialogDescription className="text-gray-300">
+            <DialogTitle className="text-foreground">Cancel Session</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               How would you like to cancel this session?
             </DialogDescription>
           </DialogHeader>
@@ -707,7 +707,7 @@ export default function EventPage() {
                   alert('Error canceling session. Please try again.')
                 }
               }}
-              className="w-full bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+              className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground cursor-pointer"
             >
               Cancel with Charge
             </Button>
@@ -742,7 +742,7 @@ export default function EventPage() {
                   alert('Error canceling session. Please try again.')
                 }
               }}
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white cursor-pointer"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
             >
               Cancel without Charge
             </Button>
@@ -752,7 +752,7 @@ export default function EventPage() {
               type="button"
               variant="outline"
               onClick={() => setCancelDialogOpen(false)}
-              className="cursor-pointer bg-[#333333] text-white border-[#2a2a2a] hover:bg-[#404040] hover:text-white"
+              className="cursor-pointer bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
             >
               Close
             </Button>

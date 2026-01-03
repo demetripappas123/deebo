@@ -135,28 +135,28 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto bg-[#1f1f1f] border-[#2a2a2a] text-white custom-scrollbar">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto bg-card border-border text-card-foreground custom-scrollbar">
         <DialogHeader>
-          <DialogTitle className="text-white">
+          <DialogTitle className="text-foreground">
             {dayId ? "Edit Training Day" : "Add Training Day"}
           </DialogTitle>
         </DialogHeader>
 
         {/* Day name */}
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-1 text-white">Day Name</label>
+          <label className="block text-sm font-medium mb-1 text-foreground">Day Name</label>
           <Input
             value={dayName}
             onChange={(e) => setDayName(e.target.value)}
             placeholder="e.g. Push Day, Legs, Upper, etc."
-            className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400"
+            className="bg-input text-foreground border-border placeholder-muted-foreground"
           />
         </div>
 
         {/* Exercises */}
         <div className="space-y-6">
           {exercises.map((ex, index) => (
-            <div key={index} className="border border-[#2a2a2a] p-3 rounded-lg relative bg-[#111111]">
+            <div key={index} className="border border-border p-3 rounded-lg relative bg-background">
               {exercises.length > 0 && (
                 <button
                   onClick={() => removeExercise(index)}
@@ -168,7 +168,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
 
               <div className="space-y-3">
                 <div className="relative">
-                  <label className="text-sm text-white">Exercise Name</label>
+                  <label className="text-sm text-foreground">Exercise Name</label>
                   <div className="relative">
                     <Input
                       value={ex.name}
@@ -190,17 +190,17 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
                         }, 200);
                       }}
                       placeholder="Type to search exercises..."
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400"
+                      className="bg-input text-foreground border-border placeholder-muted-foreground"
                     />
                     {openCombobox[index] && (
                       <div 
-                        className="absolute z-50 w-full mt-1 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md shadow-lg"
+                        className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg"
                         onMouseDown={(e) => {
                           // Prevent blur when clicking inside the dropdown (including scrollbar)
                           e.preventDefault();
                         }}
                       >
-                        <Command className="bg-[#1f1f1f] text-white">
+                        <Command className="bg-card text-foreground">
                           <CommandInput
                             value={searchValue[index] || ex.name}
                             onValueChange={(value) => {
@@ -208,13 +208,13 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
                               updateExercise(index, "name", value);
                             }}
                             placeholder="Search exercises..."
-                            className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400"
+                            className="bg-input text-foreground border-border placeholder-muted-foreground"
                           />
-                          <CommandList className="max-h-[200px] overflow-y-auto bg-[#1f1f1f] custom-scrollbar">
-                            <CommandEmpty className="text-gray-400 py-4 text-center">
+                          <CommandList className="max-h-[200px] overflow-y-auto bg-card custom-scrollbar">
+                            <CommandEmpty className="text-muted-foreground py-4 text-center">
                               No exercises found.
                             </CommandEmpty>
-                            <CommandGroup className="bg-[#1f1f1f]">
+                            <CommandGroup className="bg-card">
                               {exerciseLibrary
                                 .filter((exercise) => {
                                   const search = (searchValue[index] || ex.name || "").toLowerCase();
@@ -229,7 +229,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
                                       setSearchValue(prev => ({ ...prev, [index]: exercise.name }));
                                       setOpenCombobox(prev => ({ ...prev, [index]: false }));
                                     }}
-                                    className="text-white hover:bg-[#333333] cursor-pointer data-[selected=true]:bg-[#333333] data-[selected=true]:text-white"
+                                    className="text-foreground hover:bg-muted cursor-pointer data-[selected=true]:bg-muted data-[selected=true]:text-foreground"
                                   >
                                     {exercise.name}
                                   </CommandItem>
@@ -244,7 +244,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
 
                 <div className="flex gap-2 items-end">
                    <div className="flex-1">
-                     <label className="text-xs text-gray-300 mb-1 block">Sets</label>
+                     <label className="text-xs text-muted-foreground mb-1 block">Sets</label>
                      <Input
                        type="text"
                        value={ex.sets || ""}
@@ -310,12 +310,12 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
                 </div>
 
                 <div>
-                  <label className="text-sm text-white">Notes</label>
+                  <label className="text-sm text-foreground">Notes</label>
                   <Textarea
                     value={ex.notes}
                     onChange={(e) => updateExercise(index, "notes", e.target.value)}
                     placeholder="Cues, tempo, reminders..."
-                    className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400"
+                    className="bg-input text-foreground border-border placeholder-muted-foreground"
                     rows={2}
                   />
                 </div>
@@ -327,7 +327,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
           <Button
             onClick={addExercise}
             variant="outline"
-            className="w-full border-[#2a2a2a] bg-[#333333] text-white hover:bg-[#404040] hover:text-white flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full border-border bg-muted text-foreground hover:bg-muted/80 hover:text-foreground flex items-center justify-center gap-2 cursor-pointer"
           >
             <Plus size={18} /> Add Exercise
           </Button>
@@ -335,7 +335,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
 
         <DialogFooter>
           <Button 
-            className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white cursor-pointer" 
+            className="w-full mt-4 bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer" 
             onClick={handleSubmit} 
             variant="default"
           >

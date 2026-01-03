@@ -24,8 +24,8 @@ export default function AuthProtected({ children }: { children: React.ReactNode 
   // Show loading state (but allow login page to render)
   if (loading && !isLoginPage) {
     return (
-      <div className="min-h-screen bg-[#111111] flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-foreground">Loading...</div>
       </div>
     )
   }
@@ -42,12 +42,12 @@ export default function AuthProtected({ children }: { children: React.ReactNode 
 
   // Render protected content with sidebar
   return (
-    <div className="flex min-h-screen bg-[#111111]">
+    <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main content */}
-      <main className="flex-1 p-8 overflow-auto bg-[#111111]">
+      <main className="flex-1 p-8 overflow-auto bg-background">
         {children}
       </main>
     </div>

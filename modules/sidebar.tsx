@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import React from 'react'
 import { Settings } from 'lucide-react'
 import { supabase } from '@/supabase/supabaseClient'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function Sidebar() {
   const router = useRouter()
@@ -39,12 +40,12 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-64 bg-[#181818] text-white shadow-lg border-r border-[#2a2a2a]">
+    <aside className="w-64 bg-background text-foreground shadow-lg border-r border-border">
       <div className="flex flex-col h-full">
         {/* Logo / Brand */}
-        <div className="p-6 border-b border-[#2a2a2a]">
+        <div className="p-6 border-b border-border">
           <Link href="/">
-            <span className="text-2xl font-bold text-white">
+            <span className="text-2xl font-bold text-foreground">
               TurboTrain
             </span>
           </Link>
@@ -55,54 +56,57 @@ export default function Sidebar() {
           <div className="flex-1 space-y-2">
             <Link
               href="/dash"
-              className="flex items-center px-4 py-3 text-gray-300 rounded-lg hover:bg-[#262626] hover:text-white transition-colors"
+              className="flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-muted hover:text-foreground transition-colors"
             >
               <span className="font-medium">Dashboard</span>
             </Link>
             <Link
               href="/clients"
-              className="flex items-center px-4 py-3 text-gray-300 rounded-lg hover:bg-[#262626] hover:text-white transition-colors"
+              className="flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-muted hover:text-foreground transition-colors"
             >
               <span className="font-medium">Clients</span>
             </Link>
             <Link
               href="/prospects"
-              className="flex items-center px-4 py-3 text-gray-300 rounded-lg hover:bg-[#262626] hover:text-white transition-colors"
+              className="flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-muted hover:text-foreground transition-colors"
             >
               <span className="font-medium">Prospects</span>
             </Link>
             <Link
               href="/calendar"
-              className="flex items-center px-4 py-3 text-gray-300 rounded-lg hover:bg-[#262626] hover:text-white transition-colors"
+              className="flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-muted hover:text-foreground transition-colors"
             >
               <span className="font-medium">Calendar</span>
             </Link>
             <Link
               href="/programs"
-              className="flex items-center px-4 py-3 text-gray-300 rounded-lg hover:bg-[#262626] hover:text-white transition-colors"
+              className="flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-muted hover:text-foreground transition-colors"
             >
               <span className="font-medium">Programs</span>
             </Link>
             <Link
               href="/payments"
-              className="flex items-center px-4 py-3 text-gray-300 rounded-lg hover:bg-[#262626] hover:text-white transition-colors"
+              className="flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-muted hover:text-foreground transition-colors"
             >
               <span className="font-medium">Payments</span>
             </Link>
             <button
               onClick={handleBusinessGoalsClick}
-              className="w-full flex items-center px-4 py-3 text-gray-300 rounded-lg hover:bg-[#262626] hover:text-white transition-colors"
+              className="w-full flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-muted hover:text-foreground transition-colors"
             >
               <span className="font-medium">Business Goals</span>
             </button>
           </div>
-          <Link
-            href="/settings"
-            className="flex items-center justify-between gap-2 px-4 py-3 text-gray-300 rounded-lg hover:bg-[#262626] hover:text-white transition-colors mt-auto"
-          >
-            <span className="font-medium">Settings</span>
-            <Settings className="h-5 w-5" />
-          </Link>
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              href="/settings"
+              className="flex-1 flex items-center justify-between gap-2 px-4 py-3 text-muted-foreground rounded-lg hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <span className="font-medium">Settings</span>
+              <Settings className="h-5 w-5" />
+            </Link>
+            <ThemeToggle />
+          </div>
         </nav>
       </div>
     </aside>

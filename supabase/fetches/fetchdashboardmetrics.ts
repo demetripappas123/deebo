@@ -8,6 +8,7 @@ import { fetchTrainedRevenue } from './fetchtrainedrevenue'
 import { fetchProjectedRevenue } from './fetchprojectedrevenue'
 import { fetchPersonPackages } from './fetchpersonpackages'
 import { fetchPackages } from './fetchpackages'
+import { DateRange, DateRangeBounds, getDateRangeBounds } from '../utils/daterange'
 
 export interface DashboardMetrics {
   closeRate: number // Percentage of prospect sessions that were converted
@@ -23,54 +24,54 @@ export interface DashboardMetrics {
 /**
  * Calculate close rate: prospect sessions with converted == true / total prospect sessions
  * Prospect sessions are: KO, SGA, KOFU, Prospect Session
+ * Optionally filtered by date range
  */
-async function calculateCloseRate(): Promise<number> {
-  return await calculateProspectSessionCloseRate()
+async function calculateCloseRate(dateRange?: DateRangeBounds): Promise<number> {
+  return await calculateProspectSessionCloseRate(dateRange)
 }
 
 /**
  * Calculate show rate: completed prospect sessions / (completed + cancelled prospect sessions)
  * Only considers prospect sessions: KO, SGA, KOFU, Prospect Session
+ * Optionally filtered by date range
  */
-async function calculateShowRate(): Promise<number> {
-  return await calculateProspectSessionShowRate()
+async function calculateShowRate(dateRange?: DateRangeBounds): Promise<number> {
+  return await calculateProspectSessionShowRate(dateRange)
 }
 
 /**
- * Calculate today's bookings: total number of non-client sessions scheduled today
+ * Calculate bookings: total number of non-client sessions scheduled
  * Non-client sessions: KO, SGA, KOFU, Prospect Session
- * Must have start_time (scheduled) and created_at date of today
+ * Must have start_time (scheduled)
+ * Optionally filtered by date range (based on created_at)
  */
-async function calculateAverageBookings(trainerId?: string | null): Promise<number> {
+async function calculateAverageBookings(trainerId?: string | null, dateRange?: DateRangeBounds): Promise<number> {
   const sessions = await fetchSessions(trainerId)
   
   // Non-client session types
   const nonClientTypes = ['KO', 'SGA', 'KOFU', 'Prospect Session']
   
-  // Get today's date range (start and end of today)
-  const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
-  
   // Filter for non-client sessions that:
   // 1. Are non-client types
   // 2. Have a start_time (scheduled)
-  // 3. Have created_at date of today
-  const todayBookings = sessions.filter(session => {
+  // 3. If date range provided, created_at must be within range
+  let bookings = sessions.filter(session => {
     // Check if it's a non-client session type
     if (!nonClientTypes.includes(session.type)) return false
     
     // Check if it has a start_time (scheduled)
     if (!session.start_time) return false
     
-    // Check if created_at is today
-    const createdAt = new Date(session.created_at)
-    if (createdAt < startOfToday || createdAt > endOfToday) return false
+    // If date range provided, check created_at
+    if (dateRange) {
+      const createdAt = new Date(session.created_at)
+      if (createdAt < dateRange.start || createdAt > dateRange.end) return false
+    }
     
     return true
   })
   
-  return todayBookings.length
+  return bookings.length
 }
 
 /**
@@ -88,8 +89,9 @@ async function calculateRevenue(trainerId?: string | null): Promise<number> {
  * 2. Calculate hours for the session (from started_at to end_time, usually 1 or 0.5)
  * 3. Calculate hourly rate for that session = unit_cost / hours
  * 4. Average all session hourly rates
+ * Optionally filtered by date range (based on started_at or end_time)
  */
-async function calculateHourlyAverage(trainerId?: string | null): Promise<number> {
+async function calculateHourlyAverage(trainerId?: string | null, dateRange?: DateRangeBounds): Promise<number> {
   // Batch fetch sessions, person packages, and packages in parallel
   const [sessions, personPackages, packages] = await Promise.all([
     fetchSessions(trainerId),
@@ -103,12 +105,21 @@ async function calculateHourlyAverage(trainerId?: string | null): Promise<number
   // Filter for client sessions with status "completed" or "cancelled_with_charge" that have a package
   // Must have person_package_id to calculate hourly rate
   // Note: We use package.session_duration_minutes instead of calculating from started_at/end_time
-  const relevantSessions = sessions.filter(s => 
+  let relevantSessions = sessions.filter(s => 
     s.type === 'Client Session' && 
     (s.status === 'completed' || s.status === 'cancelled_with_charge') &&
     s.person_package_id !== null && 
     s.person_package_id !== undefined
   )
+
+  // Apply date range filter if provided (use started_at or end_time, prefer started_at)
+  if (dateRange) {
+    relevantSessions = relevantSessions.filter(s => {
+      const sessionDate = s.started_at ? new Date(s.started_at) : (s.end_time ? new Date(s.end_time) : null)
+      if (!sessionDate) return false
+      return sessionDate >= dateRange.start && sessionDate <= dateRange.end
+    })
+  }
   
   console.log('calculateHourlyAverage - Relevant sessions (with package and status):', relevantSessions.length)
   
@@ -193,18 +204,18 @@ async function calculateHourlyAverage(trainerId?: string | null): Promise<number
 
 /**
  * Fetch all dashboard metrics
- * Optionally filter by trainer_id
+ * Optionally filter by trainer_id and date range
  */
-export async function fetchDashboardMetrics(trainerId?: string | null): Promise<DashboardMetrics> {
+export async function fetchDashboardMetrics(trainerId?: string | null, dateRange?: DateRangeBounds): Promise<DashboardMetrics> {
   const [closeRate, showRate, averageBookings, revenue, trainedRevenue, hourlyAverage, mtdRevenue, projectedRevenue] = await Promise.all([
-    calculateCloseRate(),
-    calculateShowRate(),
-    calculateAverageBookings(trainerId),
+    calculateCloseRate(dateRange),
+    calculateShowRate(dateRange),
+    calculateAverageBookings(trainerId, dateRange),
     calculateRevenue(trainerId),
-    fetchTrainedRevenue(trainerId), // Trained Revenue
-    calculateHourlyAverage(trainerId),
-    fetchTotalRevenue(trainerId), // MTD Revenue
-    fetchProjectedRevenue(trainerId), // Projected Revenue
+    fetchTrainedRevenue(trainerId, dateRange), // Trained Revenue
+    calculateHourlyAverage(trainerId, dateRange),
+    fetchTotalRevenue(trainerId, dateRange), // Revenue (MTD if no range)
+    fetchProjectedRevenue(trainerId), // Projected Revenue (always monthly)
   ])
   
   return {
@@ -219,3 +230,32 @@ export async function fetchDashboardMetrics(trainerId?: string | null): Promise<
   }
 }
 
+/**
+ * Fetch individual dashboard metrics for progressive loading
+ * Returns metrics as they complete using Promise.allSettled
+ * Optionally filter by date range (projected revenue always monthly)
+ */
+export async function fetchDashboardMetricsProgressive(
+  trainerId?: string | null,
+  dateRange?: DateRangeBounds
+): Promise<{
+  closeRate: Promise<number>
+  showRate: Promise<number>
+  averageBookings: Promise<number>
+  revenue: Promise<number>
+  trainedRevenue: Promise<number>
+  hourlyAverage: Promise<number>
+  mtdRevenue: Promise<number>
+  projectedRevenue: Promise<number>
+}> {
+  return {
+    closeRate: calculateCloseRate(dateRange).then(r => Math.round(r * 100) / 100),
+    showRate: calculateShowRate(dateRange).then(r => Math.round(r * 100) / 100),
+    averageBookings: calculateAverageBookings(trainerId, dateRange).then(r => Math.round(r)),
+    revenue: calculateRevenue(trainerId).then(r => Math.round(r * 100) / 100),
+    trainedRevenue: fetchTrainedRevenue(trainerId, dateRange).then(r => Math.round(r * 100) / 100),
+    hourlyAverage: calculateHourlyAverage(trainerId, dateRange).then(r => Math.round(r * 100) / 100),
+    mtdRevenue: fetchTotalRevenue(trainerId, dateRange).then(r => Math.round(r * 100) / 100),
+    projectedRevenue: fetchProjectedRevenue(trainerId).then(r => Math.round(r * 100) / 100), // Always monthly
+  }
+}

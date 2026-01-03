@@ -13,6 +13,7 @@ import {
   Cell,
 } from 'recharts'
 import { SessionWithExercises } from '@/supabase/fetches/fetchsessions'
+import { useTheme } from '@/context/themecontext'
 
 type WorkoutVolumeChartProps = {
   sessions: SessionWithExercises[]
@@ -26,6 +27,7 @@ type VolumeDataPoint = {
 }
 
 export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps) {
+  const { variables } = useTheme()
   const [daysView, setDaysView] = useState<30 | 60 | 90>(30)
 
   // Calculate volume for each session
@@ -136,8 +138,8 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
           onClick={() => setDaysView(30)}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             daysView === 30
-              ? 'bg-orange-500 text-white'
-              : 'bg-[#333333] text-gray-300 hover:bg-[#404040]'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
           } cursor-pointer`}
         >
           30 Days
@@ -165,41 +167,41 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
       </div>
 
       {/* Chart */}
-      <div className="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-white mb-4">Total Workout Volume</h3>
+      <div className="bg-background border border-border rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-foreground mb-4">Total Workout Volume</h3>
         {chartData.length === 0 ? (
-          <div className="h-64 flex items-center justify-center text-gray-400">
+          <div className="h-64 flex items-center justify-center text-muted-foreground">
             <p>No workout data available for the selected period.</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+              <CartesianGrid strokeDasharray="3 3" stroke={variables.border} />
               <XAxis
                 dataKey="formattedDate"
-                stroke="#888888"
+                stroke={variables.mutedForeground}
                 style={{ fontSize: '12px' }}
                 angle={-45}
                 textAnchor="end"
                 height={80}
               />
               <YAxis
-                stroke="#888888"
+                stroke={variables.mutedForeground}
                 style={{ fontSize: '12px' }}
                 tickFormatter={formatVolume}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#1f1f1f',
-                  border: '1px solid #2a2a2a',
+                  backgroundColor: variables.card,
+                  border: `1px solid ${variables.border}`,
                   borderRadius: '6px',
-                  color: '#ffffff',
+                  color: variables.foreground,
                 }}
                 formatter={(value: number) => [
                   `${value.toLocaleString()} lbs`,
                   'Volume',
                 ]}
-                labelStyle={{ color: '#ffffff' }}
+                labelStyle={{ color: variables.foreground }}
                 cursor={{ fill: 'transparent' }}
               />
               <Bar

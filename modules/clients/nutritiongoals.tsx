@@ -135,31 +135,31 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
             <div className="flex items-center gap-2">
               <button
                 onClick={() => navigateMonth('prev')}
-                className="px-2 py-1 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white text-xs"
+                className="px-2 py-1 bg-muted hover:bg-muted/80 rounded-md cursor-pointer text-foreground text-xs"
               >
                 ←
               </button>
-              <span className="text-sm text-gray-300">
+              <span className="text-sm text-muted-foreground">
                 {formatMonthDisplay(selectedMonth)}
               </span>
               <button
                 onClick={() => navigateMonth('next')}
-                className="px-2 py-1 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white text-xs"
+                className="px-2 py-1 bg-muted hover:bg-muted/80 rounded-md cursor-pointer text-foreground text-xs"
               >
                 →
               </button>
             </div>
             <button
               onClick={() => setIsExpanded(true)}
-              className="px-3 py-1 bg-orange-500 hover:bg-orange-600 rounded-md cursor-pointer text-white text-sm"
+              className="px-3 py-1 bg-primary hover:bg-primary/90 rounded-md cursor-pointer text-primary-foreground text-sm"
             >
               {currentGoal ? 'Edit' : 'Set Goals'}
             </button>
           </div>
           <div className="grid grid-cols-4 gap-4 text-sm">
             <div>
-              <span className="text-gray-400">Calories:</span>{' '}
-              <span className="text-white font-medium">
+              <span className="text-muted-foreground">Calories:</span>{' '}
+              <span className="text-foreground font-medium">
                 {currentGoal?.calorie_goal ?? 'N/A'}
               </span>
             </div>
@@ -196,7 +196,7 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
             >
               ←
             </button>
-            <h3 className="text-lg font-semibold text-white">
+            <h3 className="text-lg font-semibold text-foreground">
               {formatMonthDisplay(selectedMonth)}
             </h3>
             <button
@@ -211,7 +211,7 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
           <div className="space-y-3">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Calorie Goal
             </label>
             <input
@@ -224,12 +224,12 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
                 })
               }
               placeholder="e.g. 2000"
-              className="w-full px-3 py-2 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Protein Goal (g)
             </label>
             <input
@@ -242,12 +242,12 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
                 })
               }
               placeholder="e.g. 150"
-              className="w-full px-3 py-2 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Carbs Goal (g)
             </label>
             <input
@@ -260,12 +260,12 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
                 })
               }
               placeholder="e.g. 200"
-              className="w-full px-3 py-2 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Fats Goal (g)
             </label>
             <input
@@ -278,7 +278,7 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
                 })
               }
               placeholder="e.g. 65"
-              className="w-full px-3 py-2 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
         </div>
@@ -287,7 +287,7 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
             <div className="flex gap-2">
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded-md cursor-pointer text-white text-sm"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 rounded-md cursor-pointer text-primary-foreground text-sm"
               >
                 Save
               </button>
@@ -303,14 +303,14 @@ export default function NutritionGoals({ clientId, initialGoals, onUpdate }: Nut
                     fats_goal: goal?.fats_goal ?? null,
                   })
                 }}
-                className="px-4 py-2 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white text-sm"
+                className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-md cursor-pointer text-foreground text-sm"
               >
                 Cancel
               </button>
               {currentGoal && (
                 <button
                   onClick={handleDelete}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md cursor-pointer text-white text-sm"
+                  className="px-4 py-2 bg-destructive hover:bg-destructive/90 rounded-md cursor-pointer text-destructive-foreground text-sm"
                 >
                   Delete
                 </button>

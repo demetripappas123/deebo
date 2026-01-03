@@ -91,17 +91,17 @@ export default function ProgramChat({ programId, programName, onProgramUpdated }
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg">
+    <div className="flex flex-col h-full bg-card border border-border rounded-lg">
       {/* Header */}
-      <div className="p-4 border-b border-[#2a2a2a]">
-        <h3 className="text-lg font-semibold text-white">Program Generator</h3>
-        <p className="text-sm text-gray-400 mt-1">Chat with AI to generate program content</p>
+      <div className="p-4 border-b border-border">
+        <h3 className="text-lg font-semibold text-foreground">Program Generator</h3>
+        <p className="text-sm text-muted-foreground mt-1">Chat with AI to generate program content</p>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center text-gray-400 py-8">
+          <div className="text-center text-muted-foreground py-8">
             <p>Start a conversation to generate program content</p>
             <p className="text-sm mt-2">Try: "Create a 4-week strength program"</p>
           </div>
@@ -115,8 +115,8 @@ export default function ProgramChat({ programId, programName, onProgramUpdated }
             <div
               className={`max-w-[80%] rounded-lg p-3 ${
                 message.role === 'user'
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-[#111111] border border-[#2a2a2a] text-gray-300'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-background border border-border text-muted-foreground'
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
@@ -126,11 +126,11 @@ export default function ProgramChat({ programId, programName, onProgramUpdated }
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-[#111111] border border-[#2a2a2a] text-gray-300 rounded-lg p-3">
+            <div className="bg-background border border-border text-muted-foreground rounded-lg p-3">
               <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
               </div>
             </div>
           </div>
@@ -140,20 +140,20 @@ export default function ProgramChat({ programId, programName, onProgramUpdated }
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-[#2a2a2a]">
+      <div className="p-4 border-t border-border">
         <form onSubmit={handleSend} className="flex gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1 px-4 py-2 bg-[#111111] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             disabled={loading}
           />
           <Button
             type="submit"
             disabled={loading || !input.trim()}
-            className="bg-orange-500 hover:bg-orange-600 text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="h-4 w-4" />
           </Button>

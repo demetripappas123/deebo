@@ -142,61 +142,61 @@ export default function CompactNutritionGoals({
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigateMonth('prev')}
-              className="px-2 py-1 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white text-xs"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded-md cursor-pointer text-foreground text-xs"
             >
               ←
             </button>
-            <span className="text-sm text-gray-300">
+            <span className="text-sm text-muted-foreground">
               {formatMonthDisplay(selectedMonth)}
             </span>
             <button
               onClick={() => navigateMonth('next')}
-              className="px-2 py-1 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white text-xs"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded-md cursor-pointer text-foreground text-xs"
             >
               →
             </button>
           </div>
           <button
             onClick={() => setIsDialogOpen(true)}
-            className="px-3 py-1 bg-orange-500 hover:bg-orange-600 rounded-md cursor-pointer text-white text-sm"
+            className="px-3 py-1 bg-primary hover:bg-primary/90 rounded-md cursor-pointer text-primary-foreground text-sm"
           >
             {currentGoal ? 'Edit Goals' : 'Set Goals'}
           </button>
         </div>
-        <div className="flex items-center gap-4 text-sm p-2 bg-[#111111] rounded-md">
-          <span className="text-gray-400">Calories:</span>
-          <span className="text-white">{currentGoal?.calorie_goal ?? 'N/A'}</span>
+        <div className="flex items-center gap-4 text-sm p-2 bg-background rounded-md">
+          <span className="text-muted-foreground">Calories:</span>
+          <span className="text-foreground">{currentGoal?.calorie_goal ?? 'N/A'}</span>
           
-          <span className="text-gray-400">Protein:</span>
-          <span className="text-white">{currentGoal?.protein_goal ? `${currentGoal.protein_goal}g` : 'N/A'}</span>
+          <span className="text-muted-foreground">Protein:</span>
+          <span className="text-foreground">{currentGoal?.protein_goal ? `${currentGoal.protein_goal}g` : 'N/A'}</span>
           
-          <span className="text-gray-400">Carbs:</span>
-          <span className="text-white">{currentGoal?.carbs_goal ? `${currentGoal.carbs_goal}g` : 'N/A'}</span>
+          <span className="text-muted-foreground">Carbs:</span>
+          <span className="text-foreground">{currentGoal?.carbs_goal ? `${currentGoal.carbs_goal}g` : 'N/A'}</span>
           
-          <span className="text-gray-400">Fats:</span>
-          <span className="text-white">{currentGoal?.fats_goal ? `${currentGoal.fats_goal}g` : 'N/A'}</span>
+          <span className="text-muted-foreground">Fats:</span>
+          <span className="text-foreground">{currentGoal?.fats_goal ? `${currentGoal.fats_goal}g` : 'N/A'}</span>
         </div>
       </div>
 
       {/* Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-[#1f1f1f] border-[#2a2a2a] text-white max-w-md">
+        <DialogContent className="bg-card border-border text-card-foreground max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">Nutrition Goals</DialogTitle>
+            <DialogTitle className="text-foreground">Nutrition Goals</DialogTitle>
           </DialogHeader>
 
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => navigateMonth('prev')}
-              className="px-2 py-1 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded-md cursor-pointer text-foreground"
             >
               ←
             </button>
             <span className="text-lg font-semibold">{formatMonthDisplay(selectedMonth)}</span>
             <button
               onClick={() => navigateMonth('next')}
-              className="px-2 py-1 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white"
+              className="px-2 py-1 bg-muted hover:bg-muted/80 rounded-md cursor-pointer text-foreground"
             >
               →
             </button>
@@ -205,7 +205,7 @@ export default function CompactNutritionGoals({
           {/* Form */}
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Calorie Goal
               </label>
               <input
@@ -218,12 +218,12 @@ export default function CompactNutritionGoals({
                   })
                 }
                 placeholder="e.g. 2000"
-                className="w-full px-3 py-2 bg-[#111111] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Protein Goal (g)
               </label>
               <input
@@ -236,12 +236,12 @@ export default function CompactNutritionGoals({
                   })
                 }
                 placeholder="e.g. 150"
-                className="w-full px-3 py-2 bg-[#111111] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Carbs Goal (g)
               </label>
               <input
@@ -254,12 +254,12 @@ export default function CompactNutritionGoals({
                   })
                 }
                 placeholder="e.g. 200"
-                className="w-full px-3 py-2 bg-[#111111] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-muted-foreground mb-1">
                 Fats Goal (g)
               </label>
               <input
@@ -272,7 +272,7 @@ export default function CompactNutritionGoals({
                   })
                 }
                 placeholder="e.g. 65"
-                className="w-full px-3 py-2 bg-[#111111] border border-[#2a2a2a] rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
@@ -281,13 +281,13 @@ export default function CompactNutritionGoals({
           <div className="flex gap-2 mt-4">
             <button
               onClick={handleSave}
-              className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded-md cursor-pointer text-white text-sm"
+              className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 rounded-md cursor-pointer text-primary-foreground text-sm"
             >
               Save
             </button>
             <button
               onClick={() => setIsDialogOpen(false)}
-              className="px-4 py-2 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white text-sm"
+              className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-md cursor-pointer text-foreground text-sm"
             >
               Cancel
             </button>

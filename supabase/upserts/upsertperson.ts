@@ -5,6 +5,8 @@ export interface PersonFormData {
   name: string
   number?: string
   notes?: string
+  lead_source?: string | null
+  trainer_id?: string | null
   program_id?: string | null
   package_id?: string | null
   created_at?: string
@@ -22,6 +24,7 @@ export interface ProspectFormData extends PersonFormData {}
  */
 export async function upsertPerson(person: Partial<PersonFormData>, options?: {
   asClient?: boolean // if true, sets converted_at to current time; if false, sets to null; if undefined, preserves existing
+  trainerId?: string | null // trainer_id to associate with the person
 }): Promise<any> {
   const isNewPerson = !person.id
   const fullPerson: any = {
@@ -32,6 +35,22 @@ export async function upsertPerson(person: Partial<PersonFormData>, options?: {
     package_id: person.package_id ?? null,
     created_at: person.created_at ?? new Date().toISOString(),
     ...(person.id ? { id: person.id } : {}), // include id only if it exists
+  }
+
+  // Include trainer_id: use from person data, options, or keep existing if updating
+  if (person.trainer_id !== undefined) {
+    fullPerson.trainer_id = person.trainer_id
+  } else if (options?.trainerId !== undefined) {
+    fullPerson.trainer_id = options.trainerId
+  } else if (isNewPerson && options?.trainerId === undefined && person.trainer_id === undefined) {
+    // For new persons, if no trainer_id is provided, set to null
+    fullPerson.trainer_id = null
+  }
+  // If updating existing person and trainer_id not provided, don't include it (preserve existing)
+
+  // Include lead_source if provided (must match ENUM values exactly: 'instagram reel', 'instagram dms', etc.)
+  if (person.lead_source !== undefined && person.lead_source !== null && person.lead_source.trim() !== '') {
+    fullPerson.lead_source = person.lead_source.trim()
   }
 
   // Handle converted_at based on options
@@ -69,16 +88,16 @@ export async function upsertPerson(person: Partial<PersonFormData>, options?: {
  * Upserts a client into the "people" table.
  * Sets converted_at to current time when creating a new client.
  */
-export async function upsertClient(client: Partial<ClientFormData>) {
-  return upsertPerson(client, { asClient: true })
+export async function upsertClient(client: Partial<ClientFormData>, trainerId?: string | null) {
+  return upsertPerson(client, { asClient: true, trainerId })
 }
 
 /**
  * Upserts a prospect into the "people" table.
  * Leaves converted_at as null to indicate it's a prospect.
  */
-export async function upsertProspect(prospect: Partial<ProspectFormData>) {
-  return upsertPerson(prospect, { asClient: false })
+export async function upsertProspect(prospect: Partial<ProspectFormData>, trainerId?: string | null) {
+  return upsertPerson(prospect, { asClient: false, trainerId })
 }
 
 

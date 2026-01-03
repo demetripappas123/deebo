@@ -1,17 +1,28 @@
 import { supabase } from '../supabaseClient'
 import { Session, SessionType } from './fetchsessions'
+import { DateRangeBounds } from '../utils/daterange'
 
 /**
  * Fetch all prospect sessions (KO, SGA, KOFU, Prospect Session)
+ * Optionally filtered by date range (based on created_at)
  */
-export async function fetchProspectSessions(): Promise<Session[]> {
+export async function fetchProspectSessions(dateRange?: DateRangeBounds): Promise<Session[]> {
   const prospectTypes: SessionType[] = ['KO', 'SGA', 'KOFU', 'Prospect Session']
   
-  const { data, error } = await supabase
+  let query = supabase
     .from('sessions')
     .select('*')
     .in('type', prospectTypes)
-    .order('created_at', { ascending: false })
+
+  if (dateRange) {
+    query = query
+      .gte('created_at', dateRange.start.toISOString())
+      .lte('created_at', dateRange.end.toISOString())
+  }
+
+  query = query.order('created_at', { ascending: false })
+
+  const { data, error } = await query
 
   if (error) {
     console.error('Error fetching prospect sessions:', error)
@@ -25,9 +36,10 @@ export async function fetchProspectSessions(): Promise<Session[]> {
  * Calculate close rate based on prospect sessions
  * Close rate = (completed sessions with converted == true) / (completed prospect sessions) * 100
  * Only considers completed prospect sessions
+ * Optionally filtered by date range
  */
-export async function calculateProspectSessionCloseRate(): Promise<number> {
-  const prospectSessions = await fetchProspectSessions()
+export async function calculateProspectSessionCloseRate(dateRange?: DateRangeBounds): Promise<number> {
+  const prospectSessions = await fetchProspectSessions(dateRange)
   
   // Filter for completed sessions only
   const completedSessions = prospectSessions.filter(s => s.status === 'completed')
@@ -44,9 +56,10 @@ export async function calculateProspectSessionCloseRate(): Promise<number> {
  * Calculate show rate based on prospect sessions
  * Show rate = completed sessions / (completed + cancelled sessions) * 100
  * Only considers prospect sessions: KO, SGA, KOFU, Prospect Session
+ * Optionally filtered by date range
  */
-export async function calculateProspectSessionShowRate(): Promise<number> {
-  const prospectSessions = await fetchProspectSessions()
+export async function calculateProspectSessionShowRate(dateRange?: DateRangeBounds): Promise<number> {
+  const prospectSessions = await fetchProspectSessions(dateRange)
   
   // Filter for completed sessions
   const completedSessions = prospectSessions.filter(s => s.status === 'completed')

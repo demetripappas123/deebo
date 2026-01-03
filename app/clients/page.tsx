@@ -8,7 +8,7 @@ export default function ClientsPage() {
   const displayClientsRef = useRef<DisplayClientsRef>(null)
 
   return (
-    <div className="w-full h-full bg-[#111111] text-white p-6">
+    <div className="w-full h-full bg-background text-foreground p-6">
       <h1 className="text-3xl font-bold mb-4">Clients</h1>
       <DisplayClients ref={displayClientsRef} />
       <AddClientDialog onClientAdded={() => displayClientsRef.current?.refresh()} />

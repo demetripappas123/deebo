@@ -14,6 +14,7 @@ import {
 } from 'recharts'
 import { NutritionEntry } from '@/supabase/fetches/fetchnutrition'
 import { NutritionGoal } from '@/supabase/fetches/fetchnutritiongoals'
+import { useTheme } from '@/context/themecontext'
 
 type NutritionChartProps = {
   entries: NutritionEntry[]
@@ -27,6 +28,7 @@ const parseLocalDate = (dateStr: string): Date => {
 }
 
 export default function NutritionChart({ entries, goals = [] }: NutritionChartProps) {
+  const { variables } = useTheme()
   // State to track which macros are visible
   const [visibleMacros, setVisibleMacros] = useState({
     protein: true,
@@ -235,13 +237,13 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
     if (!data) return null
     
     return (
-      <div className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-md p-3">
-        <div className="text-[#9ca3af] text-xs mb-2">{data.fullDate}</div>
+      <div className="bg-card border border-border rounded-md p-3">
+        <div className="text-muted-foreground text-xs mb-2">{data.fullDate}</div>
         {payload.map((entry: any, idx: number) => (
           <div
             key={idx}
             style={{ color: entry.color }}
-            className="text-sm mt-1"
+            className="text-sm mt-1 text-foreground"
           >
             {entry.name}: <strong>{entry.value}{entry.dataKey === 'calories' ? ' cal' : 'g'}</strong>
           </div>
@@ -290,7 +292,7 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
                   border: `1px solid ${isVisible ? entry.color : '#9ca3af'}`,
                 }}
               />
-              <span style={{ color: '#9ca3af' }}>{entry.value}</span>
+              <span className="text-muted-foreground">{entry.value}</span>
             </div>
           )
         })}
@@ -304,16 +306,16 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => navigateMonth('prev')}
-          className="px-3 py-1 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white"
+          className="px-3 py-1 bg-secondary hover:bg-secondary/80 rounded-md cursor-pointer text-secondary-foreground"
         >
           ←
         </button>
-        <h3 className="text-lg font-semibold text-white">
+        <h3 className="text-lg font-semibold text-foreground">
           {formatMonthDisplay(selectedMonth)}
         </h3>
         <button
           onClick={() => navigateMonth('next')}
-          className="px-3 py-1 bg-[#333333] hover:bg-[#404040] rounded-md cursor-pointer text-white"
+          className="px-3 py-1 bg-secondary hover:bg-secondary/80 rounded-md cursor-pointer text-secondary-foreground"
         >
           →
         </button>
@@ -321,8 +323,8 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
 
       {/* Calories Chart */}
       <div>
-        <h3 className="text-sm font-semibold text-white mb-2">Calories</h3>
-        <div className="bg-[#111111] rounded-md p-4">
+        <h3 className="text-sm font-semibold text-foreground mb-2">Calories</h3>
+        <div className="bg-background rounded-md p-4">
           <style dangerouslySetInnerHTML={{__html: `
             .recharts-bar-rectangle {
               cursor: pointer !important;
@@ -336,17 +338,17 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
           `}} />
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="4 4" stroke="#2a2a2a" vertical={false} />
+              <CartesianGrid strokeDasharray="4 4" stroke={variables.border} vertical={false} />
               <XAxis
                 dataKey="dayLabel"
-                tick={{ fill: '#9ca3af', fontSize: 11 }}
-                axisLine={{ stroke: '#2a2a2a' }}
-                tickLine={{ stroke: '#2a2a2a' }}
+                tick={{ fill: variables.mutedForeground, fontSize: 11 }}
+                axisLine={{ stroke: variables.border }}
+                tickLine={{ stroke: variables.border }}
               />
               <YAxis
-                tick={{ fill: '#9ca3af', fontSize: 11 }}
-                axisLine={{ stroke: '#2a2a2a' }}
-                tickLine={{ stroke: '#2a2a2a' }}
+                tick={{ fill: variables.mutedForeground, fontSize: 11 }}
+                axisLine={{ stroke: variables.border }}
+                tickLine={{ stroke: variables.border }}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
               <Bar dataKey="calories" radius={[4, 4, 0, 0]}>
@@ -361,8 +363,8 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
 
       {/* Macros Chart */}
       <div>
-        <h3 className="text-sm font-semibold text-white mb-2">Macros (g)</h3>
-        <div className="bg-[#111111] rounded-md p-4">
+        <h3 className="text-sm font-semibold text-foreground mb-2">Macros (g)</h3>
+        <div className="bg-background rounded-md p-4">
           <style dangerouslySetInnerHTML={{__html: `
             .recharts-bar-rectangle {
               cursor: pointer !important;
@@ -376,17 +378,17 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
           `}} />
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="4 4" stroke="#2a2a2a" vertical={false} />
+              <CartesianGrid strokeDasharray="4 4" stroke={variables.border} vertical={false} />
               <XAxis
                 dataKey="dayLabel"
-                tick={{ fill: '#9ca3af', fontSize: 11 }}
-                axisLine={{ stroke: '#2a2a2a' }}
-                tickLine={{ stroke: '#2a2a2a' }}
+                tick={{ fill: variables.mutedForeground, fontSize: 11 }}
+                axisLine={{ stroke: variables.border }}
+                tickLine={{ stroke: variables.border }}
               />
               <YAxis
-                tick={{ fill: '#9ca3af', fontSize: 11 }}
-                axisLine={{ stroke: '#2a2a2a' }}
-                tickLine={{ stroke: '#2a2a2a' }}
+                tick={{ fill: variables.mutedForeground, fontSize: 11 }}
+                axisLine={{ stroke: variables.border }}
+                tickLine={{ stroke: variables.border }}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
               <Legend content={<CustomLegend />} />
@@ -428,33 +430,33 @@ export default function NutritionChart({ entries, goals = [] }: NutritionChartPr
       {/* Summary Stats */}
       {monthlyEntries.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-3 bg-[#111111] border border-[#2a2a2a] rounded-md">
-            <div className="text-xs text-gray-400 mb-1">Avg Calories</div>
-            <div className="text-lg font-semibold text-white">
+          <div className="p-3 bg-background border border-border rounded-md">
+            <div className="text-xs text-muted-foreground mb-1">Avg Calories</div>
+            <div className="text-lg font-semibold text-foreground">
               {Math.round(
                 monthlyEntries.reduce((sum, e) => sum + (e.calories || 0), 0) / monthlyEntries.length
               ) || 0}
             </div>
           </div>
-          <div className="p-3 bg-[#111111] border border-[#2a2a2a] rounded-md">
-            <div className="text-xs text-gray-400 mb-1">Avg Protein</div>
-            <div className="text-lg font-semibold text-white">
+          <div className="p-3 bg-background border border-border rounded-md">
+            <div className="text-xs text-muted-foreground mb-1">Avg Protein</div>
+            <div className="text-lg font-semibold text-foreground">
               {Math.round(
                 monthlyEntries.reduce((sum, e) => sum + (e.protein_grams || 0), 0) / monthlyEntries.length
               ) || 0}g
             </div>
           </div>
-          <div className="p-3 bg-[#111111] border border-[#2a2a2a] rounded-md">
-            <div className="text-xs text-gray-400 mb-1">Avg Carbs</div>
-            <div className="text-lg font-semibold text-white">
+          <div className="p-3 bg-background border border-border rounded-md">
+            <div className="text-xs text-muted-foreground mb-1">Avg Carbs</div>
+            <div className="text-lg font-semibold text-foreground">
               {Math.round(
                 monthlyEntries.reduce((sum, e) => sum + (e.carbs_grams || 0), 0) / monthlyEntries.length
               ) || 0}g
             </div>
           </div>
-          <div className="p-3 bg-[#111111] border border-[#2a2a2a] rounded-md">
-            <div className="text-xs text-gray-400 mb-1">Avg Fats</div>
-            <div className="text-lg font-semibold text-white">
+          <div className="p-3 bg-background border border-border rounded-md">
+            <div className="text-xs text-muted-foreground mb-1">Avg Fats</div>
+            <div className="text-lg font-semibold text-foreground">
               {Math.round(
                 monthlyEntries.reduce((sum, e) => sum + (e.fats_grams || 0), 0) / monthlyEntries.length
               ) || 0}g

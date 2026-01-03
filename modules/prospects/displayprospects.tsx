@@ -29,7 +29,7 @@ export default function DisplayProspects() {
     loadProspects()
   }, [user])
 
-  if (loading) return <div className="text-gray-300">Loading prospects...</div>
+  if (loading) return <div className="text-muted-foreground">Loading prospects...</div>
   if (error) return <div className="text-red-400">{error}</div>
 
   return (
@@ -38,14 +38,14 @@ export default function DisplayProspects() {
         <div
           key={prospect.id}
           onClick={() => router.push(`/people/${prospect.id}`)}
-          className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg shadow p-4 overflow-hidden cursor-pointer hover:bg-[#262626] transition-colors"
+          className="bg-card border border-border rounded-lg shadow p-4 overflow-hidden cursor-pointer hover:bg-muted transition-colors"
         >
-          <h2 className="text-lg font-semibold text-white truncate">
+          <h2 className="text-lg font-semibold text-foreground truncate">
             {prospect.name}
           </h2>
-          <p className="text-gray-300 truncate">{prospect.number}</p>
+          <p className="text-muted-foreground truncate">{prospect.number}</p>
           <p
-            className="text-gray-400 truncate"
+            className="text-muted-foreground truncate"
             title={prospect.notes ?? ''} // show full notes on hover
           >
             {prospect.notes ?? 'No notes'}

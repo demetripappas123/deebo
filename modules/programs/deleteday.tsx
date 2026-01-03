@@ -48,10 +48,10 @@ export default function DeleteDayDialog({
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-[#1f1f1f] border-[#2a2a2a] text-white">
+        <DialogContent className="bg-card border-border text-card-foreground">
           <DialogHeader>
-            <DialogTitle className="text-white">Delete Day</DialogTitle>
-            <DialogDescription className="text-gray-300">
+            <DialogTitle className="text-foreground">Delete Day</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Are you sure you want to delete "{dayName}"? This will also delete all exercises in this day.
             </DialogDescription>
           </DialogHeader>
@@ -62,7 +62,7 @@ export default function DeleteDayDialog({
               variant="outline"
               onClick={() => setIsDialogOpen(false)}
               disabled={isLoading}
-              className="cursor-pointer bg-[#333333] text-white border-[#2a2a2a] hover:bg-[#404040] hover:text-white"
+              className="cursor-pointer bg-muted text-foreground border-border hover:bg-muted/80 hover:text-foreground"
             >
               Cancel
             </Button>
@@ -72,7 +72,7 @@ export default function DeleteDayDialog({
               variant="destructive"
               onClick={handleDelete}
               disabled={isLoading}
-              className="cursor-pointer bg-red-600 hover:bg-red-700 text-white"
+              className="cursor-pointer bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               {isLoading ? 'Deleting...' : 'Delete'}
             </Button>

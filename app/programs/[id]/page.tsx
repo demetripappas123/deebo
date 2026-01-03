@@ -183,32 +183,32 @@ export default function ProgramPage() {
     }
   }
 
-  if (loading) return <p className="text-gray-300">Loading program...</p>
-  if (!program) return <p className="text-gray-300">Program not found.</p>
+  if (loading) return <p className="text-muted-foreground">Loading program...</p>
+  if (!program) return <p className="text-muted-foreground">Program not found.</p>
 
   return (
-    <div className="p-6 bg-[#111111] min-h-screen text-white">
+    <div className="p-6 bg-background min-h-screen text-foreground">
       {/* Header Section */}
       <div className="space-y-4 mb-6">
         <button
           onClick={() => router.back()}
-          className="px-3 py-1 bg-[#333333] rounded-md hover:bg-[#404040]"
+          className="px-3 py-1 bg-muted rounded-md hover:bg-muted/80 text-foreground"
         >
           ← Back
         </button>
 
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{program.name}</h1>
+            <h1 className="text-2xl font-bold text-foreground">{program.name}</h1>
             {program.description && (
-              <p className="text-gray-300">{program.description}</p>
+              <p className="text-muted-foreground">{program.description}</p>
             )}
           </div>
           
           <div className="flex justify-start">
             <button
               onClick={handleAddWeek}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-500 rounded-md hover:bg-orange-600 cursor-pointer text-white"
+              className="flex items-center gap-2 px-4 py-2 bg-primary rounded-md hover:bg-primary/90 cursor-pointer text-primary-foreground"
             >
               <Plus className="h-4 w-4" />
               <span>Add Week</span>
@@ -223,28 +223,28 @@ export default function ProgramPage() {
         <div className="flex-1 space-y-4 overflow-y-auto">
           <div className="space-y-4">
         {weeks.length === 0 && (
-          <p className="text-gray-300">No weeks yet. Add one!</p>
+          <p className="text-muted-foreground">No weeks yet. Add one!</p>
         )}
 
         {weeks.map(week => (
           <div
             key={week.id}
-            className="flex items-start justify-between p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md"
+            className="flex items-start justify-between p-4 bg-card border border-border rounded-md"
           >
             <div className="flex-1">
-              <p className="text-white font-semibold mb-2">Week {week.number}</p>
+              <p className="text-foreground font-semibold mb-2">Week {week.number}</p>
 
               <div className="flex gap-2 flex-wrap items-start justify-between">
                 <div className="flex gap-2 flex-wrap items-start">
                   {week.days.map(day => (
                     <div
                       key={day.id}
-                      className="p-3 border border-gray-500 rounded-md bg-[#111111] min-w-[200px] relative"
+                      className="p-3 border border-border rounded-md bg-background min-w-[200px] relative"
                     >
                       <div className="absolute top-2 right-2 flex gap-2">
                         <button
                           onClick={() => setEditingDayId(day.id)}
-                          className="text-gray-400 hover:text-white text-xs cursor-pointer"
+                          className="text-muted-foreground hover:text-foreground text-xs cursor-pointer"
                           title="Edit day"
                         >
                           ✎
@@ -254,39 +254,39 @@ export default function ProgramPage() {
                           dayName={day.name}
                           onDeleted={refreshWeeks}
                         >
-                          <TrashIcon className="w-4 h-4 text-red-500 hover:text-red-600 cursor-pointer" />
+                          <TrashIcon className="w-4 h-4 text-destructive hover:text-destructive/80 cursor-pointer" />
                         </DeleteDayDialog>
                       </div>
-                      <div className="font-semibold text-white mb-2">{day.name}</div>
+                      <div className="font-semibold text-foreground mb-2">{day.name}</div>
                       {dayExercises[day.id] && dayExercises[day.id].length > 0 ? (
                         <div className="space-y-1">
                           {dayExercises[day.id].map((exercise, idx) => (
                             <div
                               key={idx}
-                              className="text-sm text-gray-300 border-l-2 border-orange-500 pl-2"
+                              className="text-sm text-muted-foreground border-l-2 border-primary pl-2"
                             >
-                              <div className="font-medium text-white">{exercise.exercise_name}</div>
-                              <div className="text-xs text-gray-400">
+                              <div className="font-medium text-foreground">{exercise.exercise_name}</div>
+                              <div className="text-xs text-muted-foreground">
                                 {formatRangeDisplay(exercise.sets) || "—"}×{formatRangeDisplay(exercise.reps) || "—"}
                                 {exercise.weight_used && ` @ ${exercise.weight_used}lbs`}
                                 {exercise.rir !== null && ` (RIR: ${formatRangeDisplay(exercise.rir) || "—"})`}
                                 {exercise.rpe !== null && ` (RPE: ${formatRangeDisplay(exercise.rpe) || "—"})`}
                               </div>
                               {exercise.notes && (
-                                <div className="text-xs text-gray-500 italic mt-1">{exercise.notes}</div>
+                                <div className="text-xs text-muted-foreground italic mt-1">{exercise.notes}</div>
                               )}
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-xs text-gray-500">No exercises</div>
+                        <div className="text-xs text-muted-foreground">No exercises</div>
                       )}
                     </div>
                   ))}
 
                   {/* Add Day button */}
                   <button
-                    className="p-2 border border-dashed border-gray-500 rounded-md text-gray-300 cursor-pointer flex items-center justify-center"
+                    className="p-2 border border-dashed border-border rounded-md text-muted-foreground cursor-pointer flex items-center justify-center hover:bg-muted"
                     onClick={() => setActiveWeekId(week.id)}
                   >
                     + Add Day
@@ -307,7 +307,7 @@ export default function ProgramPage() {
                   weekNumber={week.number}
                   onDeleted={refreshWeeks}
                 >
-                  <TrashIcon className="w-6 h-6 text-red-500 hover:text-red-600 cursor-pointer" />
+                  <TrashIcon className="w-6 h-6 text-destructive hover:text-destructive/80 cursor-pointer" />
                 </DeleteWeekDialog>
               </div>
 

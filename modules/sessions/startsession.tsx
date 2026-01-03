@@ -355,14 +355,14 @@ export default function StartSession({
   }
 
   return (
-    <main className="min-h-screen bg-[#111111] text-white p-8">
+    <main className="min-h-screen bg-background text-foreground p-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Track Session Workout</h1>
+          <h1 className="text-3xl font-bold text-foreground">Track Session Workout</h1>
           <div className="flex items-center gap-4">
             {/* Timer */}
-            <div className="flex items-center gap-3 bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg px-4 py-2">
-              <span className="text-2xl font-mono font-semibold text-white">
+            <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-2">
+              <span className="text-2xl font-mono font-semibold text-foreground">
                 {formatTime(timeElapsed)}
               </span>
               <div className="flex gap-2">
@@ -370,7 +370,7 @@ export default function StartSession({
                   onClick={handleStartPause}
                   variant="outline"
                   size="sm"
-                  className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+                  className="bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border cursor-pointer"
                 >
                   {isRunning ? (
                     <Pause className="h-4 w-4" />
@@ -382,7 +382,7 @@ export default function StartSession({
                   onClick={handleReset}
                   variant="outline"
                   size="sm"
-                  className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+                  className="bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border cursor-pointer"
                   disabled={timeElapsed === 0}
                 >
                   <RotateCcw className="h-4 w-4" />
@@ -392,7 +392,7 @@ export default function StartSession({
             <Button
               onClick={onCancel}
               variant="outline"
-              className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+              className="bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border cursor-pointer"
             >
               <X className="h-4 w-4 mr-2" />
               Cancel
@@ -402,12 +402,12 @@ export default function StartSession({
 
         <div className="space-y-6">
           {exercises.length === 0 ? (
-            <div className="bg-[#1f1f1f] border border-[#2a2a2a] rounded-lg p-6 text-center">
-              <p className="text-gray-400 mb-4">No exercises in workout. Add exercises below.</p>
+            <div className="bg-card border border-border rounded-lg p-6 text-center">
+              <p className="text-muted-foreground mb-4">No exercises in workout. Add exercises below.</p>
               <Button
                 onClick={addExercise}
                 variant="outline"
-                className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+                className="bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border cursor-pointer"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Exercise
@@ -418,11 +418,11 @@ export default function StartSession({
               {exercises.map((exercise, exerciseIndex) => (
               <div
                 key={exerciseIndex}
-                className="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4 relative"
+                className="bg-background border border-border rounded-lg p-4 relative"
               >
                 <button
                   onClick={() => removeExercise(exerciseIndex)}
-                  className="absolute right-2 top-2 text-red-500 hover:text-red-600 cursor-pointer p-1"
+                  className="absolute right-2 top-2 text-destructive hover:text-destructive/80 cursor-pointer p-1"
                   title="Remove exercise"
                 >
                   <Trash2 className="h-5 w-5" />
@@ -430,7 +430,7 @@ export default function StartSession({
 
                 <div className="mb-4">
                   <div className="mb-3">
-                    <label className="block text-sm font-medium mb-1 text-gray-400">
+                    <label className="block text-sm font-medium mb-1 text-muted-foreground">
                       {exercise.position + 1}. Exercise Name
                     </label>
                     <div className="relative">
@@ -453,16 +453,16 @@ export default function StartSession({
                           }, 200)
                         }}
                         placeholder="Type to search exercises..."
-                        className="bg-[#1f1f1f] text-white border-[#2a2a2a] placeholder-gray-400"
+                        className="bg-input text-foreground border-border placeholder-muted-foreground"
                       />
                       {openCombobox[exerciseIndex] && (
                         <div
-                          className="absolute z-50 w-full mt-1 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md shadow-lg"
+                          className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg"
                           onMouseDown={(e) => {
                             e.preventDefault()
                           }}
                         >
-                          <Command className="bg-[#1f1f1f] text-white">
+                          <Command className="bg-card text-foreground">
                             <CommandInput
                               value={searchValue[exerciseIndex] || exercise.exercise_name}
                               onValueChange={(value) => {
@@ -470,13 +470,13 @@ export default function StartSession({
                                 updateExerciseField(exerciseIndex, 'exercise_name', value)
                               }}
                               placeholder="Search exercises..."
-                              className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400"
+                              className="bg-background text-foreground border-border placeholder-muted-foreground"
                             />
-                            <CommandList className="max-h-[200px] overflow-y-auto bg-[#1f1f1f] custom-scrollbar">
-                              <CommandEmpty className="text-gray-400 py-4 text-center">
+                            <CommandList className="max-h-[200px] overflow-y-auto bg-card custom-scrollbar">
+                              <CommandEmpty className="text-muted-foreground py-4 text-center">
                                 No exercises found.
                               </CommandEmpty>
-                              <CommandGroup className="bg-[#1f1f1f]">
+                              <CommandGroup className="bg-card">
                                 {exerciseLibrary
                                   .filter((ex) => {
                                     const search = (searchValue[exerciseIndex] || exercise.exercise_name || '').toLowerCase()
@@ -492,7 +492,7 @@ export default function StartSession({
                                         setSearchValue((prev) => ({ ...prev, [exerciseIndex]: ex.name }))
                                         setOpenCombobox((prev) => ({ ...prev, [exerciseIndex]: false }))
                                       }}
-                                      className="text-white hover:bg-[#333333] cursor-pointer data-[selected=true]:bg-[#333333] data-[selected=true]:text-white"
+                                      className="text-foreground hover:bg-secondary cursor-pointer data-[selected=true]:bg-secondary data-[selected=true]:text-secondary-foreground"
                                     >
                                       {ex.name}
                                     </CommandItem>
@@ -505,21 +505,21 @@ export default function StartSession({
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-400">
+                    <label className="block text-sm font-medium mb-1 text-muted-foreground">
                       Exercise Notes
                     </label>
                     <Textarea
                       value={exercise.notes || ''}
                       onChange={(e) => updateExerciseNotes(exerciseIndex, e.target.value)}
                       placeholder="Add notes for this exercise..."
-                      className="bg-[#1f1f1f] text-white border-[#2a2a2a] min-h-[60px]"
+                      className="bg-input text-foreground border-border min-h-[60px]"
                     />
                   </div>
                 </div>
 
               {/* Sets */}
               <div className="space-y-3">
-                <div className="grid grid-cols-8 gap-2 text-xs font-semibold text-gray-400 pb-2 border-b border-[#2a2a2a]">
+                <div className="grid grid-cols-8 gap-2 text-xs font-semibold text-muted-foreground pb-2 border-b border-border">
                   <div>Set</div>
                   <div>Weight</div>
                   <div>Reps</div>
@@ -536,7 +536,7 @@ export default function StartSession({
                       key={setIndex}
                       className="grid grid-cols-8 gap-2 items-center"
                     >
-                    <div className="text-sm text-gray-300">{set.set_number}</div>
+                    <div className="text-sm text-muted-foreground">{set.set_number}</div>
                     <Input
                       type="number"
                       step="0.5"
@@ -550,7 +550,7 @@ export default function StartSession({
                         )
                       }
                       placeholder="Weight"
-                      className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                     <Input
                       type="number"
@@ -564,7 +564,7 @@ export default function StartSession({
                         )
                       }
                       placeholder="Reps"
-                      className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                     <Input
                       type="number"
@@ -578,7 +578,7 @@ export default function StartSession({
                         )
                       }
                       placeholder="RIR"
-                      className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                     <Input
                       type="number"
@@ -593,7 +593,7 @@ export default function StartSession({
                         )
                       }
                       placeholder="RPE"
-                      className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                     <Input
                       type="text"
@@ -602,12 +602,12 @@ export default function StartSession({
                         updateSet(exerciseIndex, setIndex, 'notes', e.target.value || null)
                       }
                       placeholder="Notes"
-                      className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8"
+                      className="bg-input text-foreground border-border text-xs h-8"
                     />
                     <div></div>
                     <button
                       onClick={() => removeSet(exerciseIndex, setIndex)}
-                      className="p-1 text-red-500 hover:text-red-600 cursor-pointer flex items-center justify-center"
+                      className="p-1 text-destructive hover:text-destructive/80 cursor-pointer flex items-center justify-center"
                       title="Remove set"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -615,7 +615,7 @@ export default function StartSession({
                   </div>
                   ))
                 ) : (
-                  <div className="text-center py-4 text-sm text-gray-400 col-span-8">
+                  <div className="text-center py-4 text-sm text-muted-foreground col-span-8">
                     No sets added yet. Click "Add Set" below to add sets for this exercise.
                   </div>
                 )}
@@ -630,7 +630,7 @@ export default function StartSession({
                   }}
                   variant="outline"
                   size="sm"
-                  className="w-full mt-2 bg-[#1f1f1f] hover:bg-[#2a2a2a] text-white border-[#2a2a2a] cursor-pointer"
+                  className="w-full mt-2 bg-card hover:bg-muted text-foreground border-border cursor-pointer"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Set
@@ -641,7 +641,7 @@ export default function StartSession({
             <Button
               onClick={addExercise}
               variant="outline"
-              className="w-full border-[#2a2a2a] bg-[#333333] text-white hover:bg-[#404040] hover:text-white flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full border-border bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Plus size={18} /> Add Exercise
             </Button>
@@ -649,18 +649,18 @@ export default function StartSession({
           )}
         </div>
 
-        <div className="mt-8 pt-6 border-t border-[#2a2a2a] flex justify-end gap-3">
+        <div className="mt-8 pt-6 border-t border-border flex justify-end gap-3">
           <Button
             onClick={onCancel}
             variant="outline"
-            className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+            className="bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border cursor-pointer"
           >
             Cancel
           </Button>
           <Button
             onClick={handleFinishSession}
             disabled={loading}
-            className="bg-green-600 hover:bg-green-700 text-white cursor-pointer px-8"
+            className="bg-green-500 hover:bg-green-600 text-white cursor-pointer px-8"
           >
             {loading ? 'Finishing...' : 'Finish Session'}
           </Button>

@@ -22,9 +22,11 @@ import Payments from '@/modules/clients/payments'
 import Contracts from '@/modules/clients/contracts'
 import EditWorkout from '@/modules/sessions/editworkout'
 import AddEventDialog from '@/modules/calendar/addevent'
+import WorkoutCalendar from '@/modules/clients/workoutcalendar'
+import AssignProgramWorkout from '@/modules/clients/assignprogramworkout'
 import { upsertSession, upsertSessionExercise, upsertExerciseSet } from '@/supabase/upserts/upsertsession'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
-import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar } from 'lucide-react'
+import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar, List, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -40,6 +42,8 @@ import { fetchClientNutritionGoals } from '@/supabase/fetches/fetchnutritiongoal
 import { fetchClientNutritionEntries } from '@/supabase/fetches/fetchnutrition'
 import { fetchContractsByPersonId } from '@/supabase/fetches/fetchcontracts'
 import { fetchPackages } from '@/supabase/fetches/fetchpackages'
+import { fetchPersonWorkoutsWithData } from '@/supabase/fetches/fetchpersonworkoutswithdata'
+import { updateWorkout } from '@/supabase/upserts/upsertworkout'
 import {
   Command,
   CommandInput,
@@ -64,6 +68,9 @@ export default function PersonPage() {
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null)
   const [showAddWorkoutForm, setShowAddWorkoutForm] = useState(false)
   const [exerciseLibrary, setExerciseLibrary] = useState<{ id: string; name: string }[]>([])
+  const [workoutView, setWorkoutView] = useState<'list' | 'calendar'>('list')
+  const [assignProgramWorkoutOpen, setAssignProgramWorkoutOpen] = useState(false)
+  const [assignProgramWorkoutDate, setAssignProgramWorkoutDate] = useState<string | undefined>(undefined)
   
   // Add workout form state
   const [newWorkoutDate, setNewWorkoutDate] = useState<string>(new Date().toISOString().split('T')[0])
@@ -321,16 +328,16 @@ export default function PersonPage() {
     }
   }
 
-  if (loading) return <p className="text-gray-300">Loading...</p>
-  if (!person) return <p className="text-gray-300">Person not found.</p>
+  if (loading) return <p className="text-muted-foreground">Loading...</p>
+  if (!person) return <p className="text-muted-foreground">Person not found.</p>
 
   // Prospect UI (simple)
   if (isProspect) {
     return (
-      <div className="p-6 space-y-4 bg-[#111111] min-h-screen text-white">
+      <div className="p-6 space-y-4 bg-background min-h-screen text-foreground">
         <button
           onClick={() => router.back()}
-          className="px-3 py-1 bg-[#333333] rounded-md hover:bg-[#404040] cursor-pointer"
+          className="px-3 py-1 bg-muted rounded-md hover:bg-muted/80 cursor-pointer"
         >
           ← Back
         </button>
@@ -346,13 +353,13 @@ export default function PersonPage() {
           </Button>
         </div>
 
-        <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
-          <p className="text-gray-300 mb-2">
-            <span className="font-semibold text-white">Number:</span> {person.number || 'N/A'}
+        <div className="p-4 bg-card border border-border rounded-md">
+          <p className="text-muted-foreground mb-2">
+            <span className="font-semibold text-foreground">Number:</span> {person.number || 'N/A'}
           </p>
           {person.notes && (
-            <p className="text-gray-300">
-              <span className="font-semibold text-white">Notes:</span> {person.notes}
+            <p className="text-muted-foreground">
+              <span className="font-semibold text-foreground">Notes:</span> {person.notes}
             </p>
           )}
         </div>
@@ -362,10 +369,10 @@ export default function PersonPage() {
 
   // Client UI (full featured)
   return (
-    <div className="p-6 space-y-4 bg-[#111111] min-h-screen text-white">
+    <div className="p-6 space-y-4 bg-background min-h-screen text-foreground">
       <button
         onClick={() => router.back()}
-        className="px-3 py-1 bg-[#333333] rounded-md hover:bg-[#404040] cursor-pointer"
+        className="px-3 py-1 bg-muted rounded-md hover:bg-muted/80 cursor-pointer"
       >
         ← Back
       </button>
@@ -378,7 +385,7 @@ export default function PersonPage() {
             initialType="Client Session"
             trigger={
               <button
-                className="p-2 bg-[#333333] hover:bg-[#404040] rounded-md text-white cursor-pointer transition-colors"
+                className="p-2 bg-muted hover:bg-muted/80 rounded-md text-foreground cursor-pointer transition-colors"
                 title="Schedule New Session"
               >
                 <Calendar className="h-5 w-5" />
@@ -389,13 +396,13 @@ export default function PersonPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 mb-6 border-b border-[#2a2a2a]">
+      <div className="flex gap-2 mb-6 border-b border-border">
         <button
           onClick={() => setActiveTab('progress')}
           className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
             activeTab === 'progress'
               ? 'text-orange-500 border-b-2 border-orange-500'
-              : 'text-gray-400 hover:text-gray-300'
+              : 'text-muted-foreground hover:text-foreground'
           } cursor-pointer`}
         >
           <Activity className="h-5 w-5" />
@@ -406,7 +413,7 @@ export default function PersonPage() {
           className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
             activeTab === 'nutrition'
               ? 'text-orange-500 border-b-2 border-orange-500'
-              : 'text-gray-400 hover:text-gray-300'
+              : 'text-muted-foreground hover:text-foreground'
           } cursor-pointer`}
         >
           <Utensils className="h-5 w-5" />
@@ -417,7 +424,7 @@ export default function PersonPage() {
           className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
             activeTab === 'sessions'
               ? 'text-orange-500 border-b-2 border-orange-500'
-              : 'text-gray-400 hover:text-gray-300'
+              : 'text-muted-foreground hover:text-foreground'
           } cursor-pointer`}
         >
           <FileText className="h-5 w-5" />
@@ -428,11 +435,11 @@ export default function PersonPage() {
           className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
             activeTab === 'workouts'
               ? 'text-orange-500 border-b-2 border-orange-500'
-              : 'text-gray-400 hover:text-gray-300'
+              : 'text-muted-foreground hover:text-foreground'
           } cursor-pointer`}
         >
           <Dumbbell className="h-5 w-5" />
-          Workout History
+          Workouts
         </button>
         {isClient && (
           <>
@@ -441,7 +448,7 @@ export default function PersonPage() {
               className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
                 activeTab === 'packages'
                   ? 'text-orange-500 border-b-2 border-orange-500'
-                  : 'text-gray-400 hover:text-gray-300'
+                  : 'text-muted-foreground hover:text-foreground'
               } cursor-pointer`}
             >
               <Box className="h-5 w-5" />
@@ -452,7 +459,7 @@ export default function PersonPage() {
               className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
                 activeTab === 'payments'
                   ? 'text-orange-500 border-b-2 border-orange-500'
-                  : 'text-gray-400 hover:text-gray-300'
+                  : 'text-muted-foreground hover:text-foreground'
               } cursor-pointer`}
             >
               <DollarSign className="h-5 w-5" />
@@ -463,7 +470,7 @@ export default function PersonPage() {
               className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
                 activeTab === 'contracts'
                   ? 'text-orange-500 border-b-2 border-orange-500'
-                  : 'text-gray-400 hover:text-gray-300'
+                  : 'text-muted-foreground hover:text-foreground'
               } cursor-pointer`}
             >
               <FileText className="h-5 w-5" />
@@ -477,15 +484,15 @@ export default function PersonPage() {
       {activeTab === 'nutrition' && (
         <>
           {nutritionLoading ? (
-            <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
-              <p className="text-gray-400">Loading nutrition data...</p>
+            <div className="p-4 bg-card border border-border rounded-md">
+              <p className="text-muted-foreground">Loading nutrition data...</p>
             </div>
           ) : (
             <>
               {/* Nutrition Goals */}
-              <div className="p-3 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md mb-4">
+              <div className="p-3 bg-card border border-border rounded-md mb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-lg font-semibold text-white">Nutrition Goals</h2>
+                  <h2 className="text-lg font-semibold text-foreground">Nutrition Goals</h2>
                 </div>
                 <CompactNutritionGoals
                   clientId={person.id}
@@ -503,13 +510,13 @@ export default function PersonPage() {
                 />
               </div>
 
-              <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
+              <div className="p-4 bg-card border border-border rounded-md">
                 <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-lg font-semibold text-white">Nutrition</h2>
+                  <h2 className="text-lg font-semibold text-foreground">Nutrition</h2>
                   {!isEditingNutrition && (
                     <button
                       onClick={() => setIsEditingNutrition(true)}
-                      className="px-3 py-1 bg-orange-500 hover:bg-orange-600 rounded-md cursor-pointer text-white text-sm"
+                      className="px-3 py-1 bg-primary hover:bg-primary/90 rounded-md cursor-pointer text-primary-foreground text-sm"
                     >
                       Edit Nutrition Information
                     </button>
@@ -533,40 +540,40 @@ export default function PersonPage() {
       )}
 
       {activeTab === 'sessions' && (
-        <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
-          <h2 className="text-lg font-semibold text-white mb-4">
+        <div className="p-4 bg-card border border-border rounded-md">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
             Session History {sessions.length > 0 && `(${sessions.length} sessions)`}
           </h2>
           {sessions.length === 0 ? (
-            <p className="text-gray-400">No sessions found.</p>
+            <p className="text-muted-foreground">No sessions found.</p>
           ) : (
             <div className="space-y-4">
               {sessions.map((session) => (
                 <div
                   key={session.id}
-                  className="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4"
+                  className="bg-background border border-border rounded-lg p-4"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white mb-2">
+                      <h3 className="text-lg font-semibold text-foreground mb-2">
                         {session.type}
                       </h3>
-                      <div className="space-y-1 text-sm text-gray-400">
+                      <div className="space-y-1 text-sm text-muted-foreground">
                         <p>
-                          <span className="font-semibold text-white">Scheduled:</span>{' '}
+                          <span className="font-semibold text-foreground">Scheduled:</span>{' '}
                         {session.start_time
                           ? new Date(session.start_time).toLocaleString()
                           : 'No date'}
                       </p>
                         {session.started_at && (
                           <p>
-                            <span className="font-semibold text-white">Started:</span>{' '}
+                            <span className="font-semibold text-foreground">Started:</span>{' '}
                             {new Date(session.started_at).toLocaleString()}
                           </p>
                         )}
                         {session.end_time && (
                           <p>
-                            <span className="font-semibold text-white">Ended:</span>{' '}
+                            <span className="font-semibold text-foreground">Ended:</span>{' '}
                             {new Date(session.end_time).toLocaleString()}
                           </p>
                         )}
@@ -576,7 +583,7 @@ export default function PersonPage() {
                         const durationMinutes = Math.round((endTime - startTime) / (1000 * 60))
                         return (
                             <p>
-                              <span className="font-semibold text-white">Duration:</span> {durationMinutes} minutes
+                              <span className="font-semibold text-foreground">Duration:</span> {durationMinutes} minutes
                           </p>
                         )
                       })()}
@@ -596,44 +603,80 @@ export default function PersonPage() {
       )}
 
       {activeTab === 'workouts' && (
-        <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
+        <div className="p-4 bg-card border border-border rounded-md">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">
-              Workout History {workouts.length > 0 && `(${workouts.length} workouts)`}
+            <h2 className="text-lg font-semibold text-foreground">
+              Workouts {workouts.length > 0 && `(${workouts.length} workouts)`}
             </h2>
-            <Button
-              onClick={() => setShowAddWorkoutForm(!showAddWorkoutForm)}
-              className="bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
-            >
-              {showAddWorkoutForm ? (
-                <>
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Workout
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* View Toggle */}
+              <div className="flex items-center gap-1 bg-background border border-border rounded-md p-1">
+                <button
+                  onClick={() => setWorkoutView('list')}
+                  className={`px-3 py-1 rounded text-sm transition-colors cursor-pointer ${
+                    workoutView === 'list'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setWorkoutView('calendar')}
+                  className={`px-3 py-1 rounded text-sm transition-colors cursor-pointer ${
+                    workoutView === 'calendar'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Calendar className="h-4 w-4" />
+                </button>
+              </div>
+              <Button
+                onClick={() => {
+                  setAssignProgramWorkoutDate(undefined)
+                  setAssignProgramWorkoutOpen(true)
+                }}
+                variant="outline"
+                className="bg-card hover:bg-muted text-foreground border-border cursor-pointer"
+              >
+                <Box className="h-4 w-4 mr-2" />
+                Assign from Program
+              </Button>
+              <Button
+                onClick={() => setShowAddWorkoutForm(!showAddWorkoutForm)}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
+              >
+                {showAddWorkoutForm ? (
+                  <>
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Workout
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Inline Add Workout Form */}
           {showAddWorkoutForm && (
-            <div className="mb-6 bg-[#111111] border border-[#2a2a2a] rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-white mb-4">Add New Workout</h3>
+            <div className="mb-6 bg-background border border-border rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Add New Workout</h3>
               
               {/* Workout Date */}
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1 text-gray-400">
+                <label className="block text-sm font-medium mb-1 text-muted-foreground">
                   Workout Date *
                 </label>
                 <Input
                   type="date"
                   value={newWorkoutDate}
                   onChange={(e) => setNewWorkoutDate(e.target.value)}
-                  className="bg-[#1f1f1f] text-white border-[#2a2a2a] max-w-xs cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:invert"
+                  className="bg-card text-foreground border-border max-w-xs cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:invert"
                   required
                 />
               </div>
@@ -641,7 +684,7 @@ export default function PersonPage() {
               {/* Exercises */}
               <div className="space-y-4 mb-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-400">Exercises</label>
+                  <label className="text-sm font-medium text-muted-foreground">Exercises</label>
                   <Button
                     type="button"
                     onClick={() => {
@@ -660,14 +703,14 @@ export default function PersonPage() {
                 </div>
 
                 {newWorkoutExercises.map((exercise, exIdx) => (
-                  <div key={exIdx} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-md p-4">
+                  <div key={exIdx} className="bg-muted border border-border rounded-md p-4">
                     <div className="flex items-start gap-2 mb-3">
                       <div className="flex-1">
-                        <label className="block text-xs font-medium mb-1 text-gray-400">
+                        <label className="block text-xs font-medium mb-1 text-muted-foreground">
                           Exercise {exIdx + 1}
                         </label>
                         <div className="relative">
-                          <Command className="bg-[#111111] border border-[#2a2a2a]">
+                          <Command className="bg-background border border-border">
                             <CommandInput
                               placeholder="Search exercises..."
                               value={searchValue[exIdx] || exercise.exercise_name || ''}
@@ -690,12 +733,12 @@ export default function PersonPage() {
                                   setOpenCombobox((prev) => ({ ...prev, [exIdx]: false }))
                                 }, 200)
                               }}
-                              className="text-white bg-[#111111]"
+                              className="text-foreground bg-background"
                             />
                             {openCombobox[exIdx] && exerciseLibrary.length > 0 && (
-                              <CommandList className="max-h-[200px] overflow-y-auto bg-[#111111] border border-[#2a2a2a]">
-                                <CommandEmpty className="text-gray-400">No exercises found.</CommandEmpty>
-                                <CommandGroup className="bg-[#111111]">
+                              <CommandList className="max-h-[200px] overflow-y-auto bg-background border border-border">
+                                <CommandEmpty className="text-muted-foreground">No exercises found.</CommandEmpty>
+                                <CommandGroup className="bg-background">
                                   {exerciseLibrary
                                     .filter(ex => {
                                       const search = (searchValue[exIdx] || exercise.exercise_name || '').toLowerCase()
@@ -716,7 +759,7 @@ export default function PersonPage() {
                                           setOpenCombobox((prev) => ({ ...prev, [exIdx]: false }))
                                           setSearchValue((prev) => ({ ...prev, [exIdx]: ex.name }))
                                         }}
-                                        className="text-white hover:bg-[#2a2a2a] cursor-pointer bg-[#111111]"
+                                        className="text-foreground hover:bg-muted cursor-pointer bg-background"
                                       >
                                         {ex.name}
                                       </CommandItem>
@@ -726,7 +769,7 @@ export default function PersonPage() {
                             )}
                           </Command>
                           {exercise.exercise_name && (
-                            <p className="text-xs text-gray-300 mt-1">{exercise.exercise_name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{exercise.exercise_name}</p>
                           )}
                         </div>
                       </div>
@@ -753,14 +796,14 @@ export default function PersonPage() {
                           updated[exIdx].notes = e.target.value
                           setNewWorkoutExercises(updated)
                         }}
-                        className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-sm"
+                        className="bg-card text-foreground border-border text-sm"
                       />
                     </div>
 
                     {/* Sets */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-medium text-gray-400">Sets</label>
+                        <label className="text-xs font-medium text-muted-foreground">Sets</label>
                         <Button
                           type="button"
                           onClick={() => {
@@ -784,7 +827,7 @@ export default function PersonPage() {
 
                       {exercise.sets.length > 0 && (
                         <div className="space-y-2">
-                          <div className="grid grid-cols-7 gap-2 text-xs font-semibold text-gray-400 pb-1 border-b border-[#2a2a2a]">
+                          <div className="grid grid-cols-7 gap-2 text-xs font-semibold text-muted-foreground pb-1 border-b border-border">
                             <div>Set</div>
                             <div>Weight</div>
                             <div>Reps</div>
@@ -795,7 +838,7 @@ export default function PersonPage() {
                           </div>
                           {exercise.sets.map((set, setIdx) => (
                             <div key={setIdx} className="grid grid-cols-7 gap-2 items-center">
-                              <div className="text-xs text-gray-300">{set.set_number}</div>
+                              <div className="text-xs text-muted-foreground">{set.set_number}</div>
                               <Input
                                 type="number"
                                 step="0.01"
@@ -806,7 +849,7 @@ export default function PersonPage() {
                                   updated[exIdx].sets[setIdx].weight = e.target.value ? parseFloat(e.target.value) : null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                className="bg-card text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               />
                               <Input
                                 type="number"
@@ -817,7 +860,7 @@ export default function PersonPage() {
                                   updated[exIdx].sets[setIdx].reps = e.target.value ? parseInt(e.target.value) : null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                className="bg-card text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               />
                               <Input
                                 type="number"
@@ -828,7 +871,7 @@ export default function PersonPage() {
                                   updated[exIdx].sets[setIdx].rir = e.target.value ? parseInt(e.target.value) : null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                className="bg-card text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               />
                               <Input
                                 type="number"
@@ -840,7 +883,7 @@ export default function PersonPage() {
                                   updated[exIdx].sets[setIdx].rpe = e.target.value ? parseFloat(e.target.value) : null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                className="bg-card text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                               />
                               <Input
                                 type="text"
@@ -851,7 +894,7 @@ export default function PersonPage() {
                                   updated[exIdx].sets[setIdx].notes = e.target.value || null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-[#1f1f1f] text-white border-[#2a2a2a] text-xs h-8"
+                                className="bg-card text-foreground border-border text-xs h-8"
                               />
                               <button
                                 type="button"
@@ -897,11 +940,11 @@ export default function PersonPage() {
                     }
 
                     try {
-                      // Create workout with workout_date
+                      // Create workout with workout_date - allow incomplete workouts
                       const newWorkout = await upsertWorkout({
                         person_id: person.id,
                         day_id: null,
-                        completed: true, // Mark as completed since it's a historical workout
+                        completed: false, // Allow creating incomplete workouts
                         workout_date: new Date(newWorkoutDate).toISOString(),
                       })
 
@@ -958,7 +1001,7 @@ export default function PersonPage() {
                     setSearchValue({})
                   }}
                   variant="outline"
-                  className="bg-[#333333] hover:bg-[#404040] text-white border-[#2a2a2a] cursor-pointer"
+                  className="bg-muted hover:bg-muted/80 text-foreground border-border cursor-pointer"
                 >
                   Cancel
                 </Button>
@@ -966,76 +1009,131 @@ export default function PersonPage() {
             </div>
           )}
 
-          {workouts.length === 0 && !showAddWorkoutForm ? (
-            <p className="text-gray-400">No workouts found.</p>
+          {/* View Content */}
+          {workoutView === 'calendar' ? (
+            <WorkoutCalendar
+              workouts={workouts}
+              onWorkoutUpdate={async () => {
+                if (person) {
+                  const workoutsWithData = await fetchPersonWorkoutsWithData(person.id)
+                  setWorkouts(workoutsWithData)
+                }
+              }}
+              onWorkoutClick={(workout) => setEditingWorkoutId(workout.id)}
+              onDateClick={(date) => {
+                // When a date is clicked in calendar, open assign dialog with that date
+                setAssignProgramWorkoutDate(date.toISOString().split('T')[0])
+                setAssignProgramWorkoutOpen(true)
+              }}
+            />
           ) : (
-            <div className="space-y-4">
-              {workouts
-                .sort((a, b) => {
-                  // Sort by workout_date (most recent first), fallback to created_at
-                  const dateA = a.workout_date ? new Date(a.workout_date).getTime() : new Date(a.created_at).getTime()
-                  const dateB = b.workout_date ? new Date(b.workout_date).getTime() : new Date(b.created_at).getTime()
-                  return dateB - dateA
-                })
-                .map((workout) => (
-                <div
-                  key={workout.id}
-                  className="bg-[#111111] border border-[#2a2a2a] rounded-lg p-4"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-white">
-                          Workout
-                        </h3>
-                        {workout.session && (
-                          <span className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded border border-blue-600/50">
-                            From Session: {workout.session.type}
-                          </span>
-                        )}
+            <>
+              {workouts.length === 0 && !showAddWorkoutForm ? (
+                <p className="text-muted-foreground">No workouts found.</p>
+              ) : (
+                <div className="space-y-4">
+                  {workouts
+                    .sort((a, b) => {
+                      // Sort by workout_date (most recent first), fallback to created_at
+                      const dateA = a.workout_date ? new Date(a.workout_date).getTime() : new Date(a.created_at).getTime()
+                      const dateB = b.workout_date ? new Date(b.workout_date).getTime() : new Date(b.created_at).getTime()
+                      return dateB - dateA
+                    })
+                    .map((workout) => (
+                    <div
+                      key={workout.id}
+                      className={`bg-background border rounded-lg p-4 ${
+                        workout.completed 
+                          ? 'border-border' 
+                          : 'border-orange-500/50 bg-orange-500/5'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-semibold text-foreground">
+                              Workout
+                            </h3>
+                            {!workout.completed && (
+                              <span className="px-2 py-1 bg-orange-600/20 text-orange-400 text-xs rounded border border-orange-600/50">
+                                Incomplete
+                              </span>
+                            )}
+                            {workout.completed && (
+                              <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded border border-green-600/50">
+                                Completed
+                              </span>
+                            )}
+                            {workout.session && (
+                              <span className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs rounded border border-blue-600/50">
+                                From Session: {workout.session.type}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-semibold text-foreground">Date:</span>{' '}
+                            {workout.workout_date 
+                              ? new Date(workout.workout_date).toLocaleString()
+                              : new Date(workout.created_at).toLocaleString()}
+                          </p>
+                          {workout.session && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              <span className="font-semibold text-foreground">Session Date:</span>{' '}
+                              {workout.session.start_time
+                                ? new Date(workout.session.start_time).toLocaleString()
+                                : 'N/A'}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!workout.completed && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await updateWorkout(workout.id, { completed: true })
+                                  if (person) {
+                                    const workoutsWithData = await fetchPersonWorkoutsWithData(person.id)
+                                    setWorkouts(workoutsWithData)
+                                  }
+                                } catch (err) {
+                                  console.error('Error completing workout:', err)
+                                  alert('Error completing workout. Please try again.')
+                                }
+                              }}
+                              className="p-2 text-green-500 hover:text-green-600 cursor-pointer"
+                              title="Mark as completed"
+                            >
+                              <Check className="h-5 w-5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setEditingWorkoutId(workout.id)}
+                            className="p-2 text-orange-500 hover:text-orange-600 cursor-pointer"
+                            title="Edit workout"
+                          >
+                            <Pencil className="h-5 w-5" />
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-400">
-                        <span className="font-semibold text-white">Date:</span>{' '}
-                        {workout.workout_date 
-                          ? new Date(workout.workout_date).toLocaleString()
-                          : new Date(workout.created_at).toLocaleString()}
-                      </p>
-                      {workout.session && (
-                        <p className="text-sm text-gray-400 mt-1">
-                          <span className="font-semibold text-white">Session Date:</span>{' '}
-                          {workout.session.start_time
-                            ? new Date(workout.session.start_time).toLocaleString()
-                            : 'N/A'}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setEditingWorkoutId(workout.id)}
-                        className="p-2 text-orange-500 hover:text-orange-600 cursor-pointer"
-                      title="Edit workout"
-                      >
-                        <Pencil className="h-5 w-5" />
-                      </button>
-                  </div>
 
                   {workout.exercises && workout.exercises.length > 0 ? (
                     <div className="space-y-3 mt-4">
                       {workout.exercises.map((exercise, idx) => (
                         <div
                           key={exercise.id || idx}
-                          className="bg-[#1a1a1a] rounded-md p-3"
+                          className="bg-muted rounded-md p-3"
                         >
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="text-md font-medium text-white">
+                            <h4 className="text-md font-medium text-foreground">
                               {exercise.position + 1}. {exercise.exercise_name || 'Unknown Exercise'}
                             </h4>
                             {exercise.notes && (
-                              <p className="text-xs text-gray-400">{exercise.notes}</p>
+                              <p className="text-xs text-muted-foreground">{exercise.notes}</p>
                             )}
                           </div>
                           {exercise.sets && exercise.sets.length > 0 && (
                             <div className="space-y-1">
-                              <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-gray-400 pb-1 border-b border-[#2a2a2a]">
+                              <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-muted-foreground pb-1 border-b border-border">
                                 <div>Set</div>
                                 <div>Weight</div>
                                 <div>Reps</div>
@@ -1046,7 +1144,7 @@ export default function PersonPage() {
                               {exercise.sets.map((set, setIdx) => (
                                 <div
                                   key={set.id || setIdx}
-                                  className="grid grid-cols-6 gap-2 text-xs text-gray-300"
+                                  className="grid grid-cols-6 gap-2 text-xs text-muted-foreground"
                                 >
                                   <div>{set.set_number}</div>
                                   <div>{set.weight ?? '-'}</div>
@@ -1062,23 +1160,25 @@ export default function PersonPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-400 text-sm mt-4">No exercises recorded for this workout.</p>
+                    <p className="text-muted-foreground text-sm mt-4">No exercises recorded for this workout.</p>
                   )}
                 </div>
               ))}
             </div>
           )}
+            </>
+          )}
         </div>
       )}
 
       {activeTab === 'progress' && (
-        <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md space-y-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Progress</h2>
+        <div className="p-4 bg-card border border-border rounded-md space-y-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Progress</h2>
           {/* Convert workouts to SessionWithExercises format for charts - use workout data primarily */}
           <WorkoutVolumeChart sessions={workouts
             .filter(w => {
-              // Only include workouts with exercises and a workout_date
-              return w.exercises && w.exercises.length > 0 && w.workout_date
+              // Only include completed workouts with exercises and a workout_date
+              return w.completed && w.exercises && w.exercises.length > 0 && w.workout_date
             })
             .map(w => ({
               // Use session data if available, otherwise create a session-like object from workout
@@ -1099,8 +1199,8 @@ export default function PersonPage() {
             })) as SessionWithExercises[]} />
           <RPERIRChart sessions={workouts
             .filter(w => {
-              // Only include workouts with exercises and a workout_date
-              return w.exercises && w.exercises.length > 0 && w.workout_date
+              // Only include completed workouts with exercises and a workout_date
+              return w.completed && w.exercises && w.exercises.length > 0 && w.workout_date
             })
             .map(w => ({
               id: w.session?.id || w.id,
@@ -1120,8 +1220,8 @@ export default function PersonPage() {
             })) as SessionWithExercises[]} />
           <WeightProgressionChart sessions={workouts
             .filter(w => {
-              // Only include workouts with exercises and a workout_date
-              return w.exercises && w.exercises.length > 0 && w.workout_date
+              // Only include completed workouts with exercises and a workout_date
+              return w.completed && w.exercises && w.exercises.length > 0 && w.workout_date
             })
             .map(w => ({
               id: w.session?.id || w.id,
@@ -1145,8 +1245,8 @@ export default function PersonPage() {
       {activeTab === 'packages' && isClient && (
         <>
           {packagesLoading ? (
-            <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
-              <p className="text-gray-400">Loading packages data...</p>
+            <div className="p-4 bg-card border border-border rounded-md">
+              <p className="text-muted-foreground">Loading packages data...</p>
             </div>
           ) : (
             <Packages personPackages={personPackages || []} packages={packages || []} />
@@ -1157,8 +1257,8 @@ export default function PersonPage() {
       {activeTab === 'payments' && isClient && person && (
         <>
           {paymentsLoading ? (
-            <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
-              <p className="text-gray-400">Loading payments data...</p>
+            <div className="p-4 bg-card border border-border rounded-md">
+              <p className="text-muted-foreground">Loading payments data...</p>
             </div>
           ) : (
             <Payments 
@@ -1175,8 +1275,8 @@ export default function PersonPage() {
       {activeTab === 'contracts' && isClient && (
         <>
           {contractsLoading ? (
-            <div className="p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-md">
-              <p className="text-gray-400">Loading contracts data...</p>
+            <div className="p-4 bg-card border border-border rounded-md">
+              <p className="text-muted-foreground">Loading contracts data...</p>
             </div>
           ) : (
             <Contracts contracts={contracts || []} packages={packages || []} />
@@ -1189,7 +1289,7 @@ export default function PersonPage() {
         const workoutToEdit = workouts.find(w => w.id === editingWorkoutId)
         
         return (
-          <div className="fixed inset-0 bg-[#111111] z-50 overflow-y-auto overflow-x-hidden" style={{ marginLeft: '256px' }}>
+          <div className="fixed inset-0 bg-background z-50 overflow-y-auto overflow-x-hidden" style={{ marginLeft: '256px' }}>
             <div className="max-w-4xl mx-auto p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-white">Edit Workout</h2>
@@ -1284,6 +1384,22 @@ export default function PersonPage() {
           </div>
         )
       })()}
+
+      {/* Assign Program Workout Dialog */}
+      {person && (
+        <AssignProgramWorkout
+          open={assignProgramWorkoutOpen}
+          onOpenChange={setAssignProgramWorkoutOpen}
+          personId={person.id}
+          initialDate={assignProgramWorkoutDate}
+          onWorkoutAssigned={async () => {
+            if (person) {
+              const workoutsWithData = await fetchPersonWorkoutsWithData(person.id)
+              setWorkouts(workoutsWithData)
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

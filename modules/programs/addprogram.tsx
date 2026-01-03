@@ -41,24 +41,24 @@ export default function AddProgramDialog({ children }: AddProgramDialogProps) {
       ) : (
         <button
           onClick={() => setIsDialogOpen(true)}
-          className="px-4 py-2 bg-orange-500 text-white font-semibold rounded-md hover:bg-orange-600 transition-colors cursor-pointer"
+          className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-md hover:bg-primary/90 transition-colors cursor-pointer"
         >
           Add Program
         </button>
       )}
 
       {isDialogOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-[#1f1f1f] p-6 rounded-lg shadow-lg w-96 border border-[#2a2a2a]">
-            <h2 className="text-xl font-bold text-white mb-4">Create New Program</h2>
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-card p-6 rounded-lg shadow-lg w-96 border border-border">
+            <h2 className="text-xl font-bold text-foreground mb-4">Create New Program</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
-                <label className="block text-gray-300 mb-1">Program Name</label>
+                <label className="block text-muted-foreground mb-1">Program Name</label>
                 <input
                   type="text"
                   value={programName}
                   onChange={(e) => setProgramName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md bg-[#262626] border border-[#333333] text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   required
                 />
               </div>
@@ -67,14 +67,14 @@ export default function AddProgramDialog({ children }: AddProgramDialogProps) {
                 <button
                   type="button"
                   onClick={() => setIsDialogOpen(false)}
-                  className="px-4 py-2 bg-[#333333] text-white rounded-md hover:bg-[#404040] transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-muted text-foreground rounded-md hover:bg-muted/80 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white font-semibold rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-primary-foreground font-semibold rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed"
                 >
                   {isLoading ? "Creating..." : "Create"}
                 </button>
