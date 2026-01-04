@@ -1,7 +1,7 @@
 import { supabase } from '../supabaseClient'
 
 export type SessionType = 'KO' | 'SGA' | 'KOFU' | 'Client Session' | 'Prospect Session'
-export type SessionStatus = 'pending' | 'completed' | 'canceled_with_charge' | 'canceled_no_charge'
+export type SessionStatus = 'pending' | 'in_progress' | 'completed' | 'canceled_with_charge' | 'canceled_no_charge'
 
 export interface Session {
   id: string
@@ -40,10 +40,10 @@ export interface ExerciseSet {
   id: string
   session_exercise_id: string
   set_number: number
-  weight: number | null
-  reps: number | null
-  rir: number | null
-  rpe: number | null
+  weight: string | null // numrange in PostgreSQL format
+  reps: string | null // numrange in PostgreSQL format
+  rir: string | null // numrange in PostgreSQL format
+  rpe: string | null // numrange in PostgreSQL format
   notes: string | null
   created_at: string
 }
@@ -150,9 +150,9 @@ export async function fetchSessionWithExercises(sessionId: string): Promise<Sess
     return { ...session, exercises: [] }
   }
 
-  // Fetch exercises for this workout (session_exercises references workout_id)
+  // Fetch exercises for this workout (workout_exercises references workout_id)
   const { data: exercises, error: exercisesError } = await supabase
-    .from('session_exercises')
+    .from('workout_exercises')
     .select(`
       *,
       exercise_library:exercise_id (
@@ -212,7 +212,7 @@ export async function fetchSessionWithExercises(sessionId: string): Promise<Sess
  */
 export async function fetchWorkoutExercises(workoutId: string): Promise<SessionExerciseWithName[]> {
   const { data, error } = await supabase
-    .from('session_exercises')
+    .from('workout_exercises')
     .select(`
       *,
       exercise_library:exercise_id (

@@ -162,7 +162,7 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
         type,
         person_id: personId,
         start_time: new Date(startTime).toISOString(), // Scheduled time
-        trainer_id: null,
+        trainer_id: user?.id || null,
         person_package_id: selectedPersonPackageId,
         converted: false,
       })

@@ -12,19 +12,23 @@ import { fetchSessions, Session } from '@/supabase/fetches/fetchsessions'
 import { fetchClients } from '@/supabase/fetches/fetchpeople'
 import { fetchProspects } from '@/supabase/fetches/fetchpeople'
 import { useTheme } from '@/context/themecontext'
+import { useAuth } from '@/context/authcontext'
 
 export default function Calendar() {
   const [events, setEvents] = useState<EventInput[]>([])
   const router = useRouter()
   const { variables } = useTheme()
+  const { user } = useAuth()
 
   useEffect(() => {
+    if (!user?.id) return
+
     const loadSessions = async () => {
       // Batch fetch all data in parallel
       const [sessions, clients, prospects] = await Promise.all([
-        fetchSessions(),
-        fetchClients(),
-        fetchProspects(),
+        fetchSessions(user.id),
+        fetchClients(user.id),
+        fetchProspects(user.id),
       ])
       
       // Create a map for quick lookup
@@ -33,7 +37,12 @@ export default function Calendar() {
       
       setEvents(
         sessions
-          .filter((s: Session) => s.start_time && s.status !== 'canceled_with_charge' && s.status !== 'canceled_no_charge') // Only include non-cancelled sessions with start times
+          .filter((s: Session) => 
+            s.start_time && 
+            s.status !== 'canceled_with_charge' && 
+            s.status !== 'canceled_no_charge' &&
+            s.trainer_id === user.id // Only show sessions for the logged-in trainer
+          ) // Only include non-cancelled sessions with start times and matching trainer_id
           .map((s: Session) => {
             // Generate title from person name (primary), with session type as secondary info
             let personName = 'Unknown'
@@ -68,7 +77,7 @@ export default function Calendar() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [user?.id])
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
     console.log('Selected date range:', selectInfo.startStr, selectInfo.endStr)

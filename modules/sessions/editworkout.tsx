@@ -15,7 +15,8 @@ import {
   CommandGroup,
   CommandItem,
 } from '@/components/ui/command'
-import { SessionExerciseWithSets } from '@/supabase/fetches/fetchsessions'
+import { SessionExerciseWithSets, SessionStatus } from '@/supabase/fetches/fetchsessions'
+import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 
 type LocalExercise = {
   id?: string // For editing existing exercises
@@ -29,10 +30,10 @@ type LocalExercise = {
 type LocalSet = {
   id?: string // For editing existing sets
   set_number: number
-  weight: number | null
-  reps: number | null
-  rir: number | null
-  rpe: number | null
+  weight: number | string | null // Display format: number for single numbers, string for ranges (e.g., "8-12")
+  reps: number | string | null // Display format: number for single numbers, string for ranges
+  rir: number | string | null // Display format: number for single numbers, string for ranges
+  rpe: number | string | null // Display format: number for single numbers, string for ranges
   notes: string | null
 }
 
@@ -41,6 +42,7 @@ type EditWorkoutProps = {
   onOpenChange: (open: boolean) => void
   sessionId?: string // If provided, we're editing an existing session
   initialExercises?: SessionExerciseWithSets[] // If provided, load these exercises
+  sessionStatus?: SessionStatus // Session status to determine if ranges are allowed
   onSave: (data: {
     exercises: LocalExercise[]
     sessionUpdates?: {
@@ -59,6 +61,7 @@ export default function EditWorkout({
   onOpenChange,
   sessionId,
   initialExercises,
+  sessionStatus,
   onSave,
   mode = 'create',
   hideDialog = false,
@@ -71,6 +74,9 @@ export default function EditWorkout({
   const [sessionStartTime, setSessionStartTime] = useState<string>('')
   const [sessionEndTime, setSessionEndTime] = useState<string>('')
 
+  // Determine if ranges are allowed based on session status
+  const allowRanges = sessionStatus !== 'in_progress' && sessionStatus !== 'completed'
+
   // Reset form when dialog opens or initialExercises change
   useEffect(() => {
     if (open) {
@@ -82,15 +88,56 @@ export default function EditWorkout({
           exercise_name: ex.exercise_name || '',
           position: ex.position,
           notes: ex.notes || '',
-          sets: (ex.sets || []).map((set) => ({
-            id: set.id,
-            set_number: set.set_number,
-            weight: set.weight,
-            reps: set.reps,
-            rir: set.rir,
-            rpe: set.rpe,
-            notes: set.notes,
-          })),
+          sets: (ex.sets || []).map((set) => {
+            // If ranges allowed, keep as string (range format), otherwise convert to single number
+            return {
+              id: set.id,
+              set_number: set.set_number,
+              weight: set.weight ? (() => {
+                const formatted = formatRangeDisplay(set.weight)
+                if (!formatted) return null
+                if (allowRanges) {
+                  // Return as string for text input (e.g., "8" or "8-12")
+                  return formatted
+                } else {
+                  // Return as number for number input (single number only)
+                  const num = formatted.includes('-') ? parseFloat(formatted.split('-')[0]) : parseFloat(formatted)
+                  return isNaN(num) ? null : num
+                }
+              })() : null,
+              reps: set.reps ? (() => {
+                const formatted = formatRangeDisplay(set.reps)
+                if (!formatted) return null
+                if (allowRanges) {
+                  return formatted
+                } else {
+                  const num = formatted.includes('-') ? parseInt(formatted.split('-')[0]) : parseInt(formatted)
+                  return isNaN(num) ? null : num
+                }
+              })() : null,
+              rir: set.rir ? (() => {
+                const formatted = formatRangeDisplay(set.rir)
+                if (!formatted) return null
+                if (allowRanges) {
+                  return formatted
+                } else {
+                  const num = formatted.includes('-') ? parseInt(formatted.split('-')[0]) : parseInt(formatted)
+                  return isNaN(num) ? null : num
+                }
+              })() : null,
+              rpe: set.rpe ? (() => {
+                const formatted = formatRangeDisplay(set.rpe)
+                if (!formatted) return null
+                if (allowRanges) {
+                  return formatted
+                } else {
+                  const num = formatted.includes('-') ? parseFloat(formatted.split('-')[0]) : parseFloat(formatted)
+                  return isNaN(num) ? null : num
+                }
+              })() : null,
+              notes: set.notes,
+            }
+          }),
         }))
         setExercises(mappedExercises)
       } else {
@@ -380,33 +427,59 @@ export default function EditWorkout({
                     <div key={setIdx} className="grid grid-cols-6 gap-2 text-xs items-center">
                       <div className="text-gray-300">{set.set_number}</div>
                       <Input
-                        type="number"
-                        step="0.01"
+                        type={allowRanges ? "text" : "number"}
+                        step={allowRanges ? undefined : "0.01"}
                         value={set.weight ?? ''}
-                        onChange={(e) => updateSet(index, setIdx, 'weight', e.target.value ? parseFloat(e.target.value) : null)}
-                        placeholder="-"
+                        onChange={(e) => {
+                          if (allowRanges) {
+                            // For ranges, store as string (e.g., "8" or "8-12")
+                            updateSet(index, setIdx, 'weight', e.target.value || null)
+                          } else {
+                            // For single numbers, store as number
+                            updateSet(index, setIdx, 'weight', e.target.value ? parseFloat(e.target.value) : null)
+                          }
+                        }}
+                        placeholder={allowRanges ? "e.g. 8 or 8-12" : "-"}
                         className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <Input
-                        type="number"
+                        type={allowRanges ? "text" : "number"}
                         value={set.reps ?? ''}
-                        onChange={(e) => updateSet(index, setIdx, 'reps', e.target.value ? parseInt(e.target.value) : null)}
-                        placeholder="-"
+                        onChange={(e) => {
+                          if (allowRanges) {
+                            updateSet(index, setIdx, 'reps', e.target.value || null)
+                          } else {
+                            updateSet(index, setIdx, 'reps', e.target.value ? parseInt(e.target.value) : null)
+                          }
+                        }}
+                        placeholder={allowRanges ? "e.g. 8 or 8-12" : "-"}
                         className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <Input
-                        type="number"
+                        type={allowRanges ? "text" : "number"}
                         value={set.rir ?? ''}
-                        onChange={(e) => updateSet(index, setIdx, 'rir', e.target.value ? parseInt(e.target.value) : null)}
-                        placeholder="-"
+                        onChange={(e) => {
+                          if (allowRanges) {
+                            updateSet(index, setIdx, 'rir', e.target.value || null)
+                          } else {
+                            updateSet(index, setIdx, 'rir', e.target.value ? parseInt(e.target.value) : null)
+                          }
+                        }}
+                        placeholder={allowRanges ? "e.g. 2 or 1-3" : "-"}
                         className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <Input
-                        type="number"
-                        step="0.5"
+                        type={allowRanges ? "text" : "number"}
+                        step={allowRanges ? undefined : "0.5"}
                         value={set.rpe ?? ''}
-                        onChange={(e) => updateSet(index, setIdx, 'rpe', e.target.value ? parseFloat(e.target.value) : null)}
-                        placeholder="-"
+                        onChange={(e) => {
+                          if (allowRanges) {
+                            updateSet(index, setIdx, 'rpe', e.target.value || null)
+                          } else {
+                            updateSet(index, setIdx, 'rpe', e.target.value ? parseFloat(e.target.value) : null)
+                          }
+                        }}
+                        placeholder={allowRanges ? "e.g. 7 or 6-8" : "-"}
                         className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <div className="flex items-center gap-1">

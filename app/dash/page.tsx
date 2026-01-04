@@ -23,6 +23,7 @@ import LeadSourcesChart from '@/modules/dashboard/leadsourceschart'
 import { Target, Users, UserPlus, DollarSign, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DateRange, getDateRangeBounds } from '@/supabase/utils/daterange'
+import { subMinutes, addDays } from 'date-fns'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -210,40 +211,68 @@ export default function DashboardPage() {
             return false
           }
           
-          // Exclude completed sessions
+          // Exclude completed sessions (in_progress sessions are still upcoming/active)
           if (session.status === 'completed') {
             console.log('❌ Completed:', session.id)
             return false
           }
           
-          // Include sessions that are in the future or today
-          const startTime = new Date(session.start_time)
-          // Include if start_time is today or in the future
-          // Use a more lenient check - include if it's today or any time in the future
-          const startDate = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate())
-          const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-          const isToday = startDate.getTime() === nowDate.getTime()
-          const isFuture = startTime.getTime() > now.getTime()
+          // Include in_progress sessions (they're active and haven't finished yet)
+          // Note: in_progress sessions will be included in the upcoming sessions list
           
-          const willInclude = isToday || isFuture
+          // Include sessions from 15 minutes in the past to 3 days in the future
+          const startTime = new Date(session.start_time)
+          
+          // Check if date is valid
+          if (isNaN(startTime.getTime())) {
+            console.log('❌ Invalid start_time:', session.id, session.start_time)
+            return false
+          }
+          
+          const fifteenMinutesAgo = subMinutes(now, 15)
+          const threeDaysFromNow = addDays(now, 3)
+          
+          // Session must be >= 15 minutes ago AND <= 3 days from now
+          // Use direct time comparison for clarity
+          const startTimeMs = startTime.getTime()
+          const windowStartMs = fifteenMinutesAgo.getTime()
+          const windowEndMs = threeDaysFromNow.getTime()
+          
+          const willInclude = startTimeMs >= windowStartMs && startTimeMs <= windowEndMs
+          
+          const minutesFromNow = Math.round((startTimeMs - now.getTime()) / (60 * 1000))
           
           if (willInclude) {
             console.log(`✅ Including session ${session.id}:`, {
               start_time: session.start_time,
               startTimeISO: startTime.toISOString(),
               nowISO: now.toISOString(),
+              windowStart: fifteenMinutesAgo.toISOString(),
+              windowEnd: threeDaysFromNow.toISOString(),
               status: session.status,
-              isToday,
-              isFuture
+              minutesFromNow,
+              startTimeMs,
+              windowStartMs,
+              windowEndMs
             })
           } else {
-            console.log(`❌ Excluding session ${session.id} - date check:`, {
+            const isBeforeWindow = startTimeMs < windowStartMs
+            const isAfterWindow = startTimeMs > windowEndMs
+            const reason = isBeforeWindow ? 'too old (before 15 min window)' : isAfterWindow ? 'too far in future (after 3 days)' : 'unknown'
+            console.log(`❌ Excluding session ${session.id} - ${reason}`)
+            console.log('  Details:', {
               start_time: session.start_time,
               startTimeISO: startTime.toISOString(),
               nowISO: now.toISOString(),
+              windowStart: fifteenMinutesAgo.toISOString(),
+              windowEnd: threeDaysFromNow.toISOString(),
               status: session.status,
-              isToday,
-              isFuture
+              minutesFromNow,
+              startTimeMs,
+              windowStartMs,
+              windowEndMs,
+              isBeforeWindow,
+              isAfterWindow
             })
           }
           
@@ -251,6 +280,11 @@ export default function DashboardPage() {
         })
         
         console.log('Upcoming sessions after filter:', upcoming.length)
+        console.log('Window boundaries:', {
+          now: now.toISOString(),
+          fifteenMinutesAgo: subMinutes(now, 15).toISOString(),
+          threeDaysFromNow: addDays(now, 3).toISOString()
+        })
         
         // Get all people to map person_id to names
         const people = await fetchPeople({ trainerId: user.id })

@@ -14,6 +14,7 @@ import {
 } from 'recharts'
 import { SessionWithExercises } from '@/supabase/fetches/fetchsessions'
 import { useTheme } from '@/context/themecontext'
+import { formatRangeDisplay } from '@/supabase/utils/rangeparse'
 
 type WorkoutVolumeChartProps = {
   sessions: SessionWithExercises[]
@@ -30,6 +31,25 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
   const { variables } = useTheme()
   const [daysView, setDaysView] = useState<30 | 60 | 90>(30)
 
+  // Extract number from numrange string (for completed workouts, should be [x,x] format)
+  const extractNumberFromRange = (rangeStr: string | null | undefined): number => {
+    if (!rangeStr) return 0
+    
+    const formatted = formatRangeDisplay(rangeStr)
+    if (!formatted) return 0
+    
+    // If it's a single number (no dash), use that
+    if (!formatted.includes('-')) {
+      const num = parseFloat(formatted)
+      return isNaN(num) ? 0 : num
+    }
+    
+    // If it's a range like "8-12", use the lower bound for completed workouts
+    const parts = formatted.split('-')
+    const lower = parseFloat(parts[0]?.trim() || '0')
+    return isNaN(lower) ? 0 : lower
+  }
+
   // Calculate volume for each session
   const calculateSessionVolume = (session: SessionWithExercises): number => {
     if (!session.exercises || session.exercises.length === 0) return 0
@@ -38,8 +58,8 @@ export default function WorkoutVolumeChart({ sessions }: WorkoutVolumeChartProps
     for (const exercise of session.exercises) {
       if (exercise.sets && exercise.sets.length > 0) {
         for (const set of exercise.sets) {
-          const weight = set.weight ?? 0
-          const reps = set.reps ?? 0
+          const weight = extractNumberFromRange(set.weight)
+          const reps = extractNumberFromRange(set.reps)
           totalVolume += weight * reps
         }
       }

@@ -94,7 +94,7 @@ export default function EventPage() {
               started_at: currentTime, // Set actual start time from server
               workout_id: session.workout_id,
               converted: session.converted,
-              status: session.status || 'pending', // Keep existing status or default to pending
+              status: 'in_progress', // Set status to in_progress when session starts
             })
             // Reload session data
             const sessionWithExercises = await fetchSessionWithExercises(id)
@@ -201,8 +201,12 @@ export default function EventPage() {
               }`}>
                 {session.status === 'canceled_with_charge' ? 'Cancelled (With Charge)' : 'Cancelled (No Charge)'}
               </span>
-            ) : (
+            ) : session.status === 'in_progress' ? (
+              <span className="capitalize text-orange-500">In Progress</span>
+            ) : session.status === 'completed' ? (
               <span className="capitalize text-green-500">Completed</span>
+            ) : (
+              <span className="capitalize text-muted-foreground">Pending</span>
             )}
           </p>
         </div>
@@ -461,7 +465,32 @@ export default function EventPage() {
           {((isProspectSession && questionnaireCompleted) || 
             (!isProspectSession && session && session.exercises && session.exercises.length > 0)) && (
             <Button
-              onClick={() => setStartSessionOpen(true)}
+              onClick={async () => {
+                // Update session status to in_progress when Start Session button is clicked
+                if (session && session.status !== 'in_progress') {
+                  try {
+                    await upsertSession({
+                      id: session.id,
+                      type: session.type,
+                      person_id: session.person_id,
+                      trainer_id: session.trainer_id,
+                      start_time: session.start_time,
+                      started_at: session.started_at, // Keep existing started_at, will be set by onSessionStart when timer starts
+                      workout_id: session.workout_id,
+                      converted: session.converted,
+                      status: 'in_progress', // Set status to in_progress when Start Session button is clicked
+                    })
+                    // Reload session data to reflect the status change
+                    const sessionWithExercises = await fetchSessionWithExercises(id)
+                    if (sessionWithExercises) {
+                      setSession(sessionWithExercises)
+                    }
+                  } catch (error) {
+                    console.error('Error updating session status:', error)
+                  }
+                }
+                setStartSessionOpen(true)
+              }}
               className="w-full bg-green-500 hover:bg-green-600 text-white cursor-pointer"
             >
               Start Session
@@ -520,6 +549,7 @@ export default function EventPage() {
           }}
           sessionId={session.id}
           initialExercises={session.exercises || []}
+          sessionStatus={session.status}
           mode="edit"
           onSave={async (data) => {
             if (!session) return
@@ -563,10 +593,11 @@ export default function EventPage() {
                 if (updatedExercise && updatedExercise.id && exercise.sets && exercise.sets.length > 0) {
                   const setData = exercise.sets.map((set, idx) => ({
                     set_number: idx + 1, // Re-number sets sequentially
-                    weight: set.weight ?? null,
-                    reps: set.reps ?? null,
-                    rir: set.rir ?? null,
-                    rpe: set.rpe ?? null,
+                    // Convert number inputs to numrange format for database
+                    weight: set.weight !== null && set.weight !== undefined ? parseRangeInput(String(set.weight)) : null,
+                    reps: set.reps !== null && set.reps !== undefined ? parseRangeInput(String(set.reps)) : null,
+                    rir: set.rir !== null && set.rir !== undefined ? parseRangeInput(String(set.rir)) : null,
+                    rpe: set.rpe !== null && set.rpe !== undefined ? parseRangeInput(String(set.rpe)) : null,
                     notes: set.notes ?? null,
                   }))
 
@@ -628,7 +659,7 @@ export default function EventPage() {
                   
                   console.log('Session updated, workout_id set to null:', updatedSession)
                   
-                  // Step 2: Delete the workout entry (this will cascade delete session_exercises and exercise_sets)
+                  // Step 2: Delete the workout entry (this will cascade delete workout_exercises and exercise_sets)
                   // The workout is now unlinked from the session, so deleting it won't affect the session
                   await deleteWorkout(workoutIdToDelete)
                   

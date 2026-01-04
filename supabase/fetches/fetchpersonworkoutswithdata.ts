@@ -17,10 +17,10 @@ export interface WorkoutWithData extends Workout {
       id: string
       session_exercise_id: string
       set_number: number
-      weight: number | null
-      reps: number | null
-      rir: number | null
-      rpe: number | null
+      weight: string | null // numrange in PostgreSQL format
+      reps: string | null // numrange in PostgreSQL format
+      rir: string | null // numrange in PostgreSQL format
+      rpe: string | null // numrange in PostgreSQL format
       notes: string | null
       created_at: string
     }>
@@ -87,7 +87,7 @@ export async function fetchPersonWorkoutsWithData(personId: string, trainerId?: 
 
   // Step 3: Fetch all exercises for these workouts in one query
   const { data: exercises, error: exercisesError } = await supabase
-    .from('session_exercises')
+    .from('workout_exercises')
     .select(`
       *,
       exercise_library:exercise_id (

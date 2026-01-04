@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient'
 
 /**
  * Delete a workout by ID
- * Note: This will cascade delete session_exercises and exercise_sets due to ON DELETE CASCADE
+ * Note: This will cascade delete workout_exercises and exercise_sets due to ON DELETE CASCADE
  */
 export async function deleteWorkout(workoutId: string): Promise<void> {
   const { error } = await supabase

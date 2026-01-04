@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useMemo } from 'react'
 import {
   RadialBarChart,
   RadialBar,
@@ -13,19 +13,12 @@ type CloseRateChartProps = {
 }
 
 export default function CloseRateChart({ closeRate }: CloseRateChartProps) {
-  const { theme } = useTheme()
-  const [bgColor, setBgColor] = useState('#2a2a2a')
-
-  useEffect(() => {
-    const root = document.documentElement
-    const computedStyle = getComputedStyle(root)
-    // Use card or muted color for background circle
-    const color = computedStyle.getPropertyValue('--color-muted').trim() || 
-                  computedStyle.getPropertyValue('--muted').trim() ||
-                  computedStyle.getPropertyValue('--color-card').trim() ||
-                  computedStyle.getPropertyValue('--card').trim()
-    setBgColor(color || '#2a2a2a')
-  }, [theme])
+  const { variables } = useTheme()
+  
+  // Use muted or card color for background circle, with fallback
+  const bgColor = useMemo(() => {
+    return variables.muted || variables.card || '#2a2a2a'
+  }, [variables.muted, variables.card])
   // Determine color based on percentage (red to green)
   const getColor = (percentage: number): string => {
     if (percentage >= 80) return '#22c55e' // green-500
@@ -88,14 +81,14 @@ export default function CloseRateChart({ closeRate }: CloseRateChartProps) {
         </ResponsiveContainer>
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-sm font-bold text-[var(--text-primary)]">
+            <div className="text-sm font-bold text-foreground">
               {closeRate.toFixed(1)}%
             </div>
           </div>
         </div>
       </div>
-      <h3 className="text-xs font-semibold text-[var(--text-primary)] mt-1">Close Rate</h3>
-      <div className="text-[9px] text-[var(--text-secondary)] mt-0.5">Prospects → Clients</div>
+      <h3 className="text-xs font-semibold text-foreground mt-1">Close Rate</h3>
+      <div className="text-[9px] text-muted-foreground mt-0.5">Prospects → Clients</div>
     </div>
   )
 }

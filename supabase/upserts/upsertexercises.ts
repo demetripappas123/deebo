@@ -9,7 +9,7 @@ export type DayExercise = {
   rir: string | null // numrange in PostgreSQL format
   rpe: string | null // numrange in PostgreSQL format
   notes: string
-  weight_used?: number | null
+  weight_used?: string | null // numrange in PostgreSQL format
   exercise_number?: number | null // Position/order of exercise in the day
 }
 

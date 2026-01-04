@@ -160,28 +160,46 @@ export default function AssignProgramWorkout({
             }
           }
 
-          // Parse reps, rir, and rpe ranges to get default values for sets
-          const getDefaultFromRange = (range: string | null | undefined): number | null => {
+          // Parse reps, rir, rpe, and weight ranges to get default values for sets
+          // Extract the lower bound from each range to use as the default value for all sets
+          // Each set needs individual values, not ranges
+          const getValueFromRange = (range: string | null | undefined): string | null => {
             if (!range) return null
+            
+            // Format the range to get display format (e.g., "8" or "8-12")
             const formatted = formatRangeDisplay(range)
             if (!formatted) return null
-
+            
+            // If it's a range like "8-12", use the lower bound "8"
+            // If it's a single value like "8", use that
             if (formatted.includes('-')) {
-              const parts = formatted.split('-')
-              const lower = parseInt(parts[0]?.trim() || '', 10)
-              return isNaN(lower) ? null : lower
+              const lower = formatted.split('-')[0]?.trim()
+              // Convert single number to numrange format [x,x]
+              if (lower) {
+                const num = parseFloat(lower)
+                if (!isNaN(num)) {
+                  return `[${Math.round(num)},${Math.round(num)}]`
+                }
+              }
             } else {
-              const num = parseInt(formatted.trim(), 10)
-              return isNaN(num) ? null : num
+              // Single value - convert to numrange format [x,x]
+              const num = parseFloat(formatted.trim())
+              if (!isNaN(num)) {
+                return `[${Math.round(num)},${Math.round(num)}]`
+              }
             }
+            
+            return null
           }
 
-          const defaultReps = getDefaultFromRange(dayExercise.reps)
-          const defaultRIR = getDefaultFromRange(dayExercise.rir)
-          const defaultRPE = getDefaultFromRange(dayExercise.rpe)
-          const defaultWeight = dayExercise.weight_used
+          // Extract values from ranges - each set gets the lower bound as its value
+          const defaultWeight = getValueFromRange(dayExercise.weight_used)
+          const defaultReps = getValueFromRange(dayExercise.reps)
+          const defaultRIR = getValueFromRange(dayExercise.rir)
+          const defaultRPE = getValueFromRange(dayExercise.rpe)
 
-          // Create sets with default values from day exercise ranges
+          // Create sets with individual values extracted from day exercise ranges
+          // Each set gets the same default value (lower bound of range, or single value)
           const setData = Array.from({ length: numSets }, (_, index) => ({
             set_number: index + 1,
             weight: defaultWeight,

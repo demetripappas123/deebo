@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash } from "lucide-react";
 import { fetchExercises } from "@/supabase/fetches/fetchexlib";
 import { fetchDayExercises, DayExerciseWithName } from "@/supabase/fetches/fetchdayexercises";
-import { formatRangeDisplay } from "@/supabase/utils/rangeparse";
+import { formatRangeDisplay, parseRangeInput } from "@/supabase/utils/rangeparse";
 import {
   Command,
   CommandInput,
@@ -24,7 +24,7 @@ type LocalDayExercise = {
   reps: string; // Range input like "2-3" or "3"
   rir: string | null; // Range input like "2-3" or "3"
   rpe: string | null; // Range input like "2-3" or "3"
-  weight: number | null;
+  weight: string | null; // numrange format for display (e.g., "100-120" or "100")
   notes: string;
 };
 
@@ -63,7 +63,7 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
               reps: formatRangeDisplay(ex.reps) || "",
               rir: formatRangeDisplay(ex.rir),
               rpe: formatRangeDisplay(ex.rpe),
-              weight: ex.weight_used,
+              weight: ex.weight_used ? formatRangeDisplay(ex.weight_used) : null,
               notes: ex.notes || '',
             }));
             setExercises(mappedExercises);
@@ -296,15 +296,15 @@ export default function AddDayDialog({ open, onClose, onSubmit, dayId, initialDa
                   </div>
 
                   <div className="flex-1">
-                    <label className="text-xs text-gray-300 mb-1 block">Weight</label>
+                    <label className="text-xs text-foreground mb-1 block">Weight (lbs)</label>
                     <Input
-                      type="number"
+                      type="text"
                       value={ex.weight ?? ""}
                       onChange={(e) =>
-                        updateExercise(index, "weight", e.target.value === "" ? null : Number(e.target.value))
+                        updateExercise(index, "weight", e.target.value === "" ? null : e.target.value)
                       }
-                      placeholder="—"
-                      className="bg-[#111111] text-white border-[#2a2a2a] placeholder-gray-400 h-9 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      placeholder="e.g., 100 or 100-120"
+                      className="bg-input text-foreground border-border placeholder-muted-foreground h-9 text-sm"
                     />
                   </div>
                 </div>

@@ -13,6 +13,7 @@ import {
 } from 'recharts'
 import { SessionWithExercises } from '@/supabase/fetches/fetchsessions'
 import { useTheme } from '@/context/themecontext'
+import { formatRangeDisplay } from '@/supabase/utils/rangeparse'
 
 type RPERIRChartProps = {
   sessions: SessionWithExercises[]
@@ -30,6 +31,25 @@ export default function RPERIRChart({ sessions }: RPERIRChartProps) {
   const [daysView, setDaysView] = useState<30 | 60 | 90>(30)
   const [metricType, setMetricType] = useState<'RPE' | 'RIR'>('RPE')
 
+  // Extract number from numrange string (for completed workouts, should be [x,x] format)
+  const extractNumberFromRange = (rangeStr: string | null | undefined): number | null => {
+    if (!rangeStr) return null
+    
+    const formatted = formatRangeDisplay(rangeStr)
+    if (!formatted) return null
+    
+    // If it's a single number (no dash), use that
+    if (!formatted.includes('-')) {
+      const num = parseFloat(formatted)
+      return isNaN(num) ? null : num
+    }
+    
+    // If it's a range like "8-12", use the lower bound for completed workouts
+    const parts = formatted.split('-')
+    const lower = parseFloat(parts[0]?.trim() || '')
+    return isNaN(lower) ? null : lower
+  }
+
   // Calculate average RPE or RIR for a session
   const calculateSessionAverage = (session: SessionWithExercises, type: 'RPE' | 'RIR'): { average: number; count: number } => {
     if (!session.exercises || session.exercises.length === 0) {
@@ -42,7 +62,8 @@ export default function RPERIRChart({ sessions }: RPERIRChartProps) {
     for (const exercise of session.exercises) {
       if (exercise.sets && exercise.sets.length > 0) {
         for (const set of exercise.sets) {
-          const value = type === 'RPE' ? set.rpe : set.rir
+          const rangeValue = type === 'RPE' ? set.rpe : set.rir
+          const value = extractNumberFromRange(rangeValue)
           if (value !== null && value !== undefined) {
             total += value
             count++

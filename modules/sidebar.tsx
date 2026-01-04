@@ -84,12 +84,6 @@ export default function Sidebar() {
             >
               <span className="font-medium">Programs</span>
             </Link>
-            <Link
-              href="/payments"
-              className="flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <span className="font-medium">Payments</span>
-            </Link>
             <button
               onClick={handleBusinessGoalsClick}
               className="w-full flex items-center px-4 py-3 text-muted-foreground rounded-lg hover:bg-muted hover:text-foreground transition-colors"

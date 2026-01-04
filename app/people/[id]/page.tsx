@@ -25,6 +25,7 @@ import AddEventDialog from '@/modules/calendar/addevent'
 import WorkoutCalendar from '@/modules/clients/workoutcalendar'
 import AssignProgramWorkout from '@/modules/clients/assignprogramworkout'
 import { upsertSession, upsertSessionExercise, upsertExerciseSet } from '@/supabase/upserts/upsertsession'
+import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
 import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar, List, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -80,10 +81,10 @@ export default function PersonPage() {
     notes: string
     sets: Array<{
       set_number: number
-      weight: number | null
-      reps: number | null
-      rir: number | null
-      rpe: number | null
+      weight: string | null // numrange in PostgreSQL format
+      reps: string | null // numrange in PostgreSQL format
+      rir: string | null // numrange in PostgreSQL format
+      rpe: string | null // numrange in PostgreSQL format
       notes: string | null
     }>
   }>>([])
@@ -840,50 +841,48 @@ export default function PersonPage() {
                             <div key={setIdx} className="grid grid-cols-7 gap-2 items-center">
                               <div className="text-xs text-muted-foreground">{set.set_number}</div>
                               <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="Weight"
+                                type="text"
+                                placeholder="e.g. 8 or 8-12"
                                 value={set.weight ?? ''}
                                 onChange={(e) => {
                                   const updated = [...newWorkoutExercises]
-                                  updated[exIdx].sets[setIdx].weight = e.target.value ? parseFloat(e.target.value) : null
+                                  updated[exIdx].sets[setIdx].weight = e.target.value || null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-card text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                className="bg-card text-foreground border-border text-xs h-8"
                               />
                               <Input
-                                type="number"
-                                placeholder="Reps"
+                                type="text"
+                                placeholder="e.g. 8 or 8-12"
                                 value={set.reps ?? ''}
                                 onChange={(e) => {
                                   const updated = [...newWorkoutExercises]
-                                  updated[exIdx].sets[setIdx].reps = e.target.value ? parseInt(e.target.value) : null
+                                  updated[exIdx].sets[setIdx].reps = e.target.value || null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-card text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                className="bg-card text-foreground border-border text-xs h-8"
                               />
                               <Input
-                                type="number"
-                                placeholder="RIR"
+                                type="text"
+                                placeholder="e.g. 2 or 1-3"
                                 value={set.rir ?? ''}
                                 onChange={(e) => {
                                   const updated = [...newWorkoutExercises]
-                                  updated[exIdx].sets[setIdx].rir = e.target.value ? parseInt(e.target.value) : null
+                                  updated[exIdx].sets[setIdx].rir = e.target.value || null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-card text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                className="bg-card text-foreground border-border text-xs h-8"
                               />
                               <Input
-                                type="number"
-                                step="0.5"
-                                placeholder="RPE"
+                                type="text"
+                                placeholder="e.g. 7 or 6-8"
                                 value={set.rpe ?? ''}
                                 onChange={(e) => {
                                   const updated = [...newWorkoutExercises]
-                                  updated[exIdx].sets[setIdx].rpe = e.target.value ? parseFloat(e.target.value) : null
+                                  updated[exIdx].sets[setIdx].rpe = e.target.value || null
                                   setNewWorkoutExercises(updated)
                                 }}
-                                className="bg-card text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                className="bg-card text-foreground border-border text-xs h-8"
                               />
                               <Input
                                 type="text"
@@ -963,10 +962,11 @@ export default function PersonPage() {
                             await upsertExerciseSet({
                               session_exercise_id: sessionExercise.id,
                               set_number: set.set_number,
-                              weight: set.weight ?? null,
-                              reps: set.reps ?? null,
-                              rir: set.rir ?? null,
-                              rpe: set.rpe ?? null,
+                              // Convert number inputs to numrange format for database
+                              weight: set.weight !== null && set.weight !== undefined ? parseRangeInput(String(set.weight)) : null,
+                              reps: set.reps !== null && set.reps !== undefined ? parseRangeInput(String(set.reps)) : null,
+                              rir: set.rir !== null && set.rir !== undefined ? parseRangeInput(String(set.rir)) : null,
+                              rpe: set.rpe !== null && set.rpe !== undefined ? parseRangeInput(String(set.rpe)) : null,
                               notes: set.notes ?? null,
                             })
                           }
@@ -1147,10 +1147,10 @@ export default function PersonPage() {
                                   className="grid grid-cols-6 gap-2 text-xs text-muted-foreground"
                                 >
                                   <div>{set.set_number}</div>
-                                  <div>{set.weight ?? '-'}</div>
-                                  <div>{set.reps ?? '-'}</div>
-                                  <div>{set.rir ?? '-'}</div>
-                                  <div>{set.rpe ?? '-'}</div>
+                                  <div>{set.weight ? formatRangeDisplay(set.weight) ?? '-' : '-'}</div>
+                                  <div>{set.reps ? formatRangeDisplay(set.reps) ?? '-' : '-'}</div>
+                                  <div>{set.rir ? formatRangeDisplay(set.rir) ?? '-' : '-'}</div>
+                                  <div>{set.rpe ? formatRangeDisplay(set.rpe) ?? '-' : '-'}</div>
                                   <div className="text-xs truncate">{set.notes || '-'}</div>
                                 </div>
                               ))}
@@ -1308,6 +1308,7 @@ export default function PersonPage() {
             }}
                 sessionId={workoutToEdit?.session?.id}
                 initialExercises={workoutToEdit?.exercises}
+                sessionStatus={workoutToEdit?.session?.status}
             mode="edit"
                 hideDialog={true}
             onSave={async (data) => {
@@ -1324,7 +1325,7 @@ export default function PersonPage() {
 
                 // Delete all existing exercises for this workout (cascade will handle sets)
                 const { error: deleteError } = await supabase
-                  .from('session_exercises')
+                  .from('workout_exercises')
                   .delete()
                   .eq('workout_id', workoutId)
 
@@ -1359,10 +1360,11 @@ export default function PersonPage() {
                       await upsertExerciseSet({
                         session_exercise_id: sessionExercise.id,
                         set_number: set.set_number,
-                        weight: set.weight ?? null,
-                        reps: set.reps ?? null,
-                        rir: set.rir ?? null,
-                        rpe: set.rpe ?? null,
+                        // Convert number inputs to numrange format for database
+                        weight: set.weight !== null && set.weight !== undefined ? parseRangeInput(String(set.weight)) : null,
+                        reps: set.reps !== null && set.reps !== undefined ? parseRangeInput(String(set.reps)) : null,
+                        rir: set.rir !== null && set.rir !== undefined ? parseRangeInput(String(set.rir)) : null,
+                        rpe: set.rpe !== null && set.rpe !== undefined ? parseRangeInput(String(set.rpe)) : null,
                         notes: set.notes ?? null,
                       })
                     }

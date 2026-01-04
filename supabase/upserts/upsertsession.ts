@@ -27,10 +27,10 @@ export interface ExerciseSetFormData {
   id?: string
   session_exercise_id: string
   set_number: number
-  weight?: number | null
-  reps?: number | null
-  rir?: number | null
-  rpe?: number | null
+  weight?: string | null // numrange in PostgreSQL format
+  reps?: string | null // numrange in PostgreSQL format
+  rir?: string | null // numrange in PostgreSQL format
+  rpe?: string | null // numrange in PostgreSQL format
   notes?: string | null
 }
 
@@ -118,7 +118,7 @@ export async function upsertSessionExercise(
   if (exercise.id) {
     // Update existing exercise
     const { data, error } = await supabase
-      .from('session_exercises')
+      .from('workout_exercises')
       .update(exerciseData)
       .eq('id', exercise.id)
       .select()
@@ -133,7 +133,7 @@ export async function upsertSessionExercise(
   } else {
     // Create new exercise
     const { data, error } = await supabase
-      .from('session_exercises')
+      .from('workout_exercises')
       .insert([exerciseData])
       .select()
       .single()
@@ -203,7 +203,7 @@ export async function upsertWorkoutExercises(
 ): Promise<any> {
   // Fetch existing exercises
   const { data: existingExercises, error: fetchError } = await supabase
-    .from('session_exercises')
+    .from('workout_exercises')
     .select('*')
     .eq('workout_id', workoutId)
 
@@ -232,7 +232,7 @@ export async function upsertWorkoutExercises(
   if (toDelete.length > 0) {
     const deleteIds = toDelete.map((e) => e.id)
     const { error: deleteError } = await supabase
-      .from('session_exercises')
+      .from('workout_exercises')
       .delete()
       .in('id', deleteIds)
 
@@ -314,7 +314,7 @@ export async function updateSessionExercise(
   updates: Partial<Omit<SessionExerciseFormData, 'id' | 'workout_id'>>
 ): Promise<any> {
   const { data, error } = await supabase
-    .from('session_exercises')
+    .from('workout_exercises')
     .update(updates)
     .eq('id', exerciseId)
     .select()

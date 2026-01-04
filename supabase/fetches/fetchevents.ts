@@ -6,7 +6,7 @@ export interface CalendarEvent {
   title: string
   start_time: string
   duration_minutes: number
-  status: 'pending' | 'completed' | 'canceled_with_charge' | 'canceled_no_charge'
+  status: 'pending' | 'in_progress' | 'completed' | 'canceled_with_charge' | 'canceled_no_charge'
   person_id?: string | null
 }
 

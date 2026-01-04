@@ -13,6 +13,7 @@ import {
 } from 'recharts'
 import { SessionWithExercises } from '@/supabase/fetches/fetchsessions'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
+import { formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import {
   Command,
   CommandInput,
@@ -115,11 +116,31 @@ export default function WeightProgressionChart({ sessions }: WeightProgressionCh
         )
 
         if (matchingExercise && exercise.sets && exercise.sets.length > 0) {
+          // Extract number from numrange string (for completed workouts, should be [x,x] format)
+          const extractNumberFromRange = (rangeStr: string | null | undefined): number => {
+            if (!rangeStr) return 0
+            
+            const formatted = formatRangeDisplay(rangeStr)
+            if (!formatted) return 0
+            
+            // If it's a single number (no dash), use that
+            if (!formatted.includes('-')) {
+              const num = parseFloat(formatted)
+              return isNaN(num) ? 0 : num
+            }
+            
+            // If it's a range like "100-120", use the upper bound for max weight
+            const parts = formatted.split('-')
+            const upper = parseFloat(parts[1]?.trim() || parts[0]?.trim() || '0')
+            return isNaN(upper) ? 0 : upper
+          }
+          
           // Find max weight for this exercise in this session
           let maxWeight = 0
           for (const set of exercise.sets) {
-            if (set.weight && set.weight > maxWeight) {
-              maxWeight = set.weight
+            const weight = extractNumberFromRange(set.weight)
+            if (weight > maxWeight) {
+              maxWeight = weight
             }
           }
 

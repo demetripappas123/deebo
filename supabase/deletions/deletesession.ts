@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient'
 
 /**
  * Delete a session by ID
- * Note: This will cascade delete session_exercises and exercise_sets due to ON DELETE CASCADE
+ * Note: This will cascade delete workout_exercises and exercise_sets due to ON DELETE CASCADE
  */
 export async function deleteSession(sessionId: string): Promise<void> {
   const { error } = await supabase
@@ -22,7 +22,7 @@ export async function deleteSession(sessionId: string): Promise<void> {
  */
 export async function deleteSessionExercise(sessionExerciseId: string): Promise<void> {
   const { error } = await supabase
-    .from('session_exercises')
+    .from('workout_exercises')
     .delete()
     .eq('id', sessionExerciseId)
 
@@ -37,7 +37,7 @@ export async function deleteSessionExercise(sessionExerciseId: string): Promise<
  */
 export async function deleteWorkoutExercises(workoutId: string): Promise<void> {
   const { error } = await supabase
-    .from('session_exercises')
+    .from('workout_exercises')
     .delete()
     .eq('workout_id', workoutId)
 

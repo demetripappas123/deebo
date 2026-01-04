@@ -157,7 +157,7 @@ export default function ProgramPage() {
             rir: ex.rir && ex.rir.trim() ? parseRangeInput(ex.rir) ?? null : null,
             rpe: ex.rpe && ex.rpe.trim() ? parseRangeInput(ex.rpe) ?? null : null,
             notes: ex.notes || '',
-            weight_used: ex.weight ?? null,
+            weight_used: ex.weight && ex.weight.trim() ? parseRangeInput(ex.weight) ?? null : null,
             exercise_number: index + 1, // Set exercise_number based on array position
           }
         })
@@ -268,7 +268,7 @@ export default function ProgramPage() {
                               <div className="font-medium text-foreground">{exercise.exercise_name}</div>
                               <div className="text-xs text-muted-foreground">
                                 {formatRangeDisplay(exercise.sets) || "—"}×{formatRangeDisplay(exercise.reps) || "—"}
-                                {exercise.weight_used && ` @ ${exercise.weight_used}lbs`}
+                                {exercise.weight_used && ` @ ${formatRangeDisplay(exercise.weight_used) || exercise.weight_used}lbs`}
                                 {exercise.rir !== null && ` (RIR: ${formatRangeDisplay(exercise.rir) || "—"})`}
                                 {exercise.rpe !== null && ` (RPE: ${formatRangeDisplay(exercise.rpe) || "—"})`}
                               </div>

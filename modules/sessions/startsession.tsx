@@ -9,6 +9,7 @@ import { SessionWithExercises } from '@/supabase/fetches/fetchsessions'
 import { upsertExerciseSet, upsertSessionExercise, upsertSession, upsertWorkoutExercises, upsertExerciseSets } from '@/supabase/upserts/upsertsession'
 import { getServerTime } from '@/supabase/utils/getServerTime'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
+import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import { incrementPersonPackageUsedUnits } from '@/supabase/upserts/incrementpersonpackageusedunits'
 import {
   Command,
@@ -22,10 +23,10 @@ import {
 type TrackedSet = {
   id?: string
   set_number: number
-  weight: number | null
-  reps: number | null
-  rir: number | null
-  rpe: number | null
+  weight: number | null // Display format (number) for UI, converted to numrange on save
+  reps: number | null // Display format (number) for UI, converted to numrange on save
+  rir: number | null // Display format (number) for UI, converted to numrange on save
+  rpe: number | null // Display format (number) for UI, converted to numrange on save
   notes: string | null
 }
 
@@ -87,10 +88,33 @@ export default function StartSession({
         sets: (ex.sets || []).map((set) => ({
           id: set.id,
           set_number: set.set_number,
-          weight: set.weight,
-          reps: set.reps,
-          rir: set.rir,
-          rpe: set.rpe,
+          // Convert numrange to single number for in_progress session (single numbers only)
+          // If range [x,y], take lower bound x; if [x,x], take x
+          weight: set.weight ? (() => {
+            const formatted = formatRangeDisplay(set.weight)
+            if (!formatted) return null
+            // Extract first number (lower bound) for single number input
+            const num = formatted.includes('-') ? parseFloat(formatted.split('-')[0]) : parseFloat(formatted)
+            return isNaN(num) ? null : num
+          })() : null,
+          reps: set.reps ? (() => {
+            const formatted = formatRangeDisplay(set.reps)
+            if (!formatted) return null
+            const num = formatted.includes('-') ? parseInt(formatted.split('-')[0]) : parseInt(formatted)
+            return isNaN(num) ? null : num
+          })() : null,
+          rir: set.rir ? (() => {
+            const formatted = formatRangeDisplay(set.rir)
+            if (!formatted) return null
+            const num = formatted.includes('-') ? parseInt(formatted.split('-')[0]) : parseInt(formatted)
+            return isNaN(num) ? null : num
+          })() : null,
+          rpe: set.rpe ? (() => {
+            const formatted = formatRangeDisplay(set.rpe)
+            if (!formatted) return null
+            const num = formatted.includes('-') ? parseFloat(formatted.split('-')[0]) : parseFloat(formatted)
+            return isNaN(num) ? null : num
+          })() : null,
           notes: set.notes,
         })),
       }))
@@ -290,10 +314,11 @@ export default function StartSession({
           if (updatedExercise && updatedExercise.id) {
             const setData = exercise.sets.map((set, idx) => ({
               set_number: idx + 1, // Re-number sets sequentially
-              weight: set.weight ?? null,
-              reps: set.reps ?? null,
-              rir: set.rir ?? null,
-              rpe: set.rpe ?? null,
+              // Convert number inputs to numrange format for database
+              weight: set.weight !== null && set.weight !== undefined ? parseRangeInput(String(set.weight)) : null,
+              reps: set.reps !== null && set.reps !== undefined ? parseRangeInput(String(set.reps)) : null,
+              rir: set.rir !== null && set.rir !== undefined ? parseRangeInput(String(set.rir)) : null,
+              rpe: set.rpe !== null && set.rpe !== undefined ? parseRangeInput(String(set.rpe)) : null,
               notes: set.notes ?? null,
             }))
 
@@ -541,42 +566,89 @@ export default function StartSession({
                       type="number"
                       step="0.5"
                       value={set.weight ?? ''}
-                      onChange={(e) =>
-                        updateSet(
-                          exerciseIndex,
-                          setIndex,
-                          'weight',
-                          e.target.value ? parseFloat(e.target.value) : null
-                        )
-                      }
+                      onChange={(e) => {
+                        // Only allow numeric input (including decimals)
+                        const value = e.target.value
+                        // Allow empty string, numbers, and single decimal point
+                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                          updateSet(
+                            exerciseIndex,
+                            setIndex,
+                            'weight',
+                            value ? parseFloat(value) : null
+                          )
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Prevent non-numeric characters (except allowed ones)
+                        // Allow: numbers, backspace, delete, tab, escape, enter, decimal point
+                        const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']
+                        const isNumber = /^[0-9]$/.test(e.key)
+                        const isDecimal = e.key === '.' && !e.currentTarget.value.includes('.')
+                        const isAllowedKey = allowedKeys.includes(e.key)
+                        
+                        if (!isNumber && !isDecimal && !isAllowedKey && !e.ctrlKey && !e.metaKey) {
+                          e.preventDefault()
+                        }
+                      }}
                       placeholder="Weight"
                       className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                     <Input
                       type="number"
                       value={set.reps ?? ''}
-                      onChange={(e) =>
-                        updateSet(
-                          exerciseIndex,
-                          setIndex,
-                          'reps',
-                          e.target.value ? parseInt(e.target.value) : null
-                        )
-                      }
+                      onChange={(e) => {
+                        // Only allow integer input
+                        const value = e.target.value
+                        // Allow empty string or integers only
+                        if (value === '' || /^\d+$/.test(value)) {
+                          updateSet(
+                            exerciseIndex,
+                            setIndex,
+                            'reps',
+                            value ? parseInt(value) : null
+                          )
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Prevent non-numeric characters
+                        const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']
+                        const isNumber = /^[0-9]$/.test(e.key)
+                        const isAllowedKey = allowedKeys.includes(e.key)
+                        
+                        if (!isNumber && !isAllowedKey && !e.ctrlKey && !e.metaKey) {
+                          e.preventDefault()
+                        }
+                      }}
                       placeholder="Reps"
                       className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                     <Input
                       type="number"
                       value={set.rir ?? ''}
-                      onChange={(e) =>
-                        updateSet(
-                          exerciseIndex,
-                          setIndex,
-                          'rir',
-                          e.target.value ? parseInt(e.target.value) : null
-                        )
-                      }
+                      onChange={(e) => {
+                        // Only allow integer input
+                        const value = e.target.value
+                        // Allow empty string or integers only
+                        if (value === '' || /^\d+$/.test(value)) {
+                          updateSet(
+                            exerciseIndex,
+                            setIndex,
+                            'rir',
+                            value ? parseInt(value) : null
+                          )
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Prevent non-numeric characters
+                        const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']
+                        const isNumber = /^[0-9]$/.test(e.key)
+                        const isAllowedKey = allowedKeys.includes(e.key)
+                        
+                        if (!isNumber && !isAllowedKey && !e.ctrlKey && !e.metaKey) {
+                          e.preventDefault()
+                        }
+                      }}
                       placeholder="RIR"
                       className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
@@ -584,14 +656,30 @@ export default function StartSession({
                       type="number"
                       step="0.5"
                       value={set.rpe ?? ''}
-                      onChange={(e) =>
-                        updateSet(
-                          exerciseIndex,
-                          setIndex,
-                          'rpe',
-                          e.target.value ? parseFloat(e.target.value) : null
-                        )
-                      }
+                      onChange={(e) => {
+                        // Only allow numeric input (including decimals)
+                        const value = e.target.value
+                        // Allow empty string, numbers, and single decimal point
+                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                          updateSet(
+                            exerciseIndex,
+                            setIndex,
+                            'rpe',
+                            value ? parseFloat(value) : null
+                          )
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Prevent non-numeric characters (except allowed ones)
+                        const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']
+                        const isNumber = /^[0-9]$/.test(e.key)
+                        const isDecimal = e.key === '.' && !e.currentTarget.value.includes('.')
+                        const isAllowedKey = allowedKeys.includes(e.key)
+                        
+                        if (!isNumber && !isDecimal && !isAllowedKey && !e.ctrlKey && !e.metaKey) {
+                          e.preventDefault()
+                        }
+                      }}
                       placeholder="RPE"
                       className="bg-input text-foreground border-border text-xs h-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
