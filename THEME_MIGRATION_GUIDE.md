@@ -117,3 +117,4 @@ Then use `chartColors` in ECharts options.
 - Theme preference is saved to localStorage
 - System preference is used as default if no saved preference
 
+

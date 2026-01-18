@@ -13,6 +13,24 @@ import { upsertDayExercises, updateDayExercises, DayExercise } from '@/supabase/
 import { parseRangeInput } from '@/supabase/utils/rangeparse'
 import { getOrCreateConversation, updateConversation } from '@/supabase/helpers/aiconversation'
 
+/**
+ * Safely converts a value to numrange format
+ * Handles both user input (e.g., "8-12", "8") and existing numrange format (e.g., "[8,12]")
+ */
+function toNumRange(value: string | null | undefined): string | null {
+  if (!value || value.trim() === '') return null
+  
+  const trimmed = value.trim()
+  
+  // If already in numrange format (starts with [ or (), use it directly
+  if (trimmed.startsWith('[') || trimmed.startsWith('(')) {
+    return trimmed
+  }
+  
+  // Otherwise, parse as user input
+  return parseRangeInput(trimmed)
+}
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_MASTER_KEY! })
 
 /* ───────────────────────────────────────────── */
@@ -360,10 +378,10 @@ async function applyOperations(
         const exerciseUpdate: DayExercise = {
           day_id: day.id,
           exercise_def_id: def.id,
-          sets: op.sets !== undefined ? parseRangeInput(op.sets) : match.sets,
-          reps: op.reps !== undefined ? parseRangeInput(op.reps) : match.reps,
-          rir: op.rir !== undefined ? parseRangeInput(op.rir ?? null) : match.rir,
-          rpe: op.rpe !== undefined ? parseRangeInput(op.rpe ?? null) : match.rpe,
+          sets: op.sets !== undefined ? toNumRange(op.sets) : match.sets,
+          reps: op.reps !== undefined ? toNumRange(op.reps) : match.reps,
+          rir: op.rir !== undefined ? toNumRange(op.rir ?? null) : match.rir,
+          rpe: op.rpe !== undefined ? toNumRange(op.rpe ?? null) : match.rpe,
           notes: op.notes !== undefined ? op.notes : (match.notes ?? ''),
           exercise_number: op.order !== undefined ? op.order : (match.exercise_number ?? null),
         }
@@ -396,10 +414,10 @@ async function applyOperations(
         const newExercise: DayExercise = {
           day_id: day.id,
           exercise_def_id: def.id,
-          sets: parseRangeInput(op.sets),
-          reps: parseRangeInput(op.reps),
-          rir: parseRangeInput(op.rir ?? null),
-          rpe: parseRangeInput(op.rpe ?? null),
+          sets: toNumRange(op.sets),
+          reps: toNumRange(op.reps),
+          rir: toNumRange(op.rir ?? null),
+          rpe: toNumRange(op.rpe ?? null),
           notes: op.notes ?? '',
           exercise_number: op.order !== undefined ? op.order : null,
         }

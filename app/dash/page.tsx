@@ -198,27 +198,37 @@ export default function DashboardPage() {
         })))
         
         // Get upcoming sessions (start_time in the future or today, not cancelled, not completed)
+        // Include ALL in_progress sessions regardless of time window
         const upcoming = sessions.filter(session => {
-          // Must have start_time
-          if (!session.start_time) {
-            console.log('❌ No start_time:', session.id, session.type, session.status)
-            return false
-          }
-          
           // Exclude cancelled sessions
           if (session.status === 'canceled_with_charge' || session.status === 'canceled_no_charge') {
             console.log('❌ Cancelled:', session.id, session.status)
             return false
           }
           
-          // Exclude completed sessions (in_progress sessions are still upcoming/active)
+          // Exclude completed sessions
           if (session.status === 'completed') {
             console.log('❌ Completed:', session.id)
             return false
           }
           
-          // Include in_progress sessions (they're active and haven't finished yet)
-          // Note: in_progress sessions will be included in the upcoming sessions list
+          // Include ALL in_progress sessions (they're active and haven't finished yet)
+          // Don't apply time window filter to in_progress sessions
+          if (session.status === 'in_progress') {
+            console.log(`✅ Including in_progress session ${session.id}:`, {
+              start_time: session.start_time,
+              started_at: session.started_at,
+              status: session.status
+            })
+            return true
+          }
+          
+          // For pending sessions, apply time window filter
+          // Must have start_time
+          if (!session.start_time) {
+            console.log('❌ No start_time:', session.id, session.type, session.status)
+            return false
+          }
           
           // Include sessions from 15 minutes in the past to 3 days in the future
           const startTime = new Date(session.start_time)

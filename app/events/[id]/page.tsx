@@ -20,6 +20,7 @@ import { getServerTime } from '@/supabase/utils/getServerTime'
 import { fetchPersonById } from '@/supabase/fetches/fetchpeople'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
 import { UserCheck } from 'lucide-react'
+import { formatRangeDisplay } from '@/supabase/utils/rangeparse'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +34,6 @@ export default function EventPage() {
   const [editWorkoutOpen, setEditWorkoutOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
-  const [startSessionOpen, setStartSessionOpen] = useState(false)
   const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false)
   const [converting, setConverting] = useState(false)
   const [person, setPerson] = useState<any>(null)
@@ -75,52 +75,8 @@ export default function EventPage() {
   }, [id])
 
   // If starting session, show full-page view instead of normal page
-  // This must be after all hooks are called
-  if (startSessionOpen && session) {
-    return (
-      <StartSession
-        session={session}
-        onSessionStart={async () => {
-          // Set started_at when session actually starts
-          // Use server time to avoid client clock issues
-          if (!session.started_at) {
-            const currentTime = await getServerTime()
-            await upsertSession({
-              id: session.id,
-              type: session.type,
-              person_id: session.person_id,
-              trainer_id: session.trainer_id,
-              start_time: session.start_time, // Keep scheduled time
-              started_at: currentTime, // Set actual start time from server
-              workout_id: session.workout_id,
-              converted: session.converted,
-              status: 'in_progress', // Set status to in_progress when session starts
-            })
-            // Reload session data
-            const sessionWithExercises = await fetchSessionWithExercises(id)
-            if (sessionWithExercises) {
-              setSession(sessionWithExercises)
-            }
-          }
-        }}
-        onSessionComplete={async () => {
-          // Reload session data
-          const sessionWithExercises = await fetchSessionWithExercises(id)
-          if (sessionWithExercises) {
-            setSession(sessionWithExercises)
-          }
-          setStartSessionOpen(false)
-          
-          // If this is a prospect session (KO/SGA) and not converted, redirect to conversion page
-          const isProspectSession = sessionWithExercises.type === 'KO' || sessionWithExercises.type === 'SGA' || sessionWithExercises.type === 'KOFU'
-          if (isProspectSession && !sessionWithExercises.converted && sessionWithExercises.person_id) {
-            router.push(`/conversion/${sessionWithExercises.person_id}`)
-          }
-        }}
-        onCancel={() => setStartSessionOpen(false)}
-      />
-    )
-  }
+  // Removed startSessionOpen overlay - clicking Start Session immediately sets status to in_progress
+  // which triggers the in_progress conditional rendering below
 
   if (loading) {
     return (
@@ -158,6 +114,7 @@ export default function EventPage() {
   // Check if session is cancelled
   const isCancelled = session.status === 'canceled_with_charge' || session.status === 'canceled_no_charge'
   const isCompleted = session.status === 'completed' || session.end_time
+  const isInProgress = session.status === 'in_progress'
 
   // Handle completed or cancelled status - show prescribed vs actual sets
   if (isCompleted || isCancelled) {
@@ -333,6 +290,82 @@ export default function EventPage() {
     )
   }
 
+  // Handle in_progress status - show StartSession component directly
+  if (isInProgress) {
+    return (
+      <>
+        {session && (
+          <StartSession
+            session={session}
+            onSessionStart={async () => {
+              // Set started_at when session actually starts (if not already set)
+              // Use server time to avoid client clock issues
+              if (!session.started_at) {
+                const currentTime = await getServerTime()
+                await upsertSession({
+                  id: session.id,
+                  type: session.type,
+                  person_id: session.person_id,
+                  trainer_id: session.trainer_id,
+                  start_time: session.start_time, // Keep scheduled time
+                  started_at: currentTime, // Set actual start time from server
+                  workout_id: session.workout_id,
+                  converted: session.converted,
+                  status: 'in_progress', // Keep status as in_progress
+                })
+                // Reload session data
+                const sessionWithExercises = await fetchSessionWithExercises(id)
+                if (sessionWithExercises) {
+                  setSession(sessionWithExercises)
+                }
+              }
+            }}
+            onSessionComplete={async () => {
+              // Reload session data
+              const sessionWithExercises = await fetchSessionWithExercises(id)
+              if (sessionWithExercises) {
+                setSession(sessionWithExercises)
+              }
+            }}
+            onCancel={async () => {
+              // Don't clear localStorage on cancel - user might come back
+              // Just reload the session data
+              const sessionWithExercises = await fetchSessionWithExercises(id)
+              if (sessionWithExercises) {
+                setSession(sessionWithExercises)
+              }
+            }}
+            onSessionCancel={async (withCharge: boolean) => {
+              // Cancel the session with or without charge
+              try {
+                await upsertSession({
+                  id: session.id,
+                  type: session.type,
+                  person_id: session.person_id,
+                  trainer_id: session.trainer_id,
+                  start_time: session.start_time,
+                  started_at: session.started_at,
+                  end_time: session.end_time,
+                  workout_id: session.workout_id,
+                  converted: session.converted,
+                  status: withCharge ? 'canceled_with_charge' : 'canceled_no_charge',
+                })
+                // Reload session data
+                const sessionWithExercises = await fetchSessionWithExercises(id)
+                if (sessionWithExercises) {
+                  setSession(sessionWithExercises)
+                }
+              } catch (error) {
+                console.error('Error canceling session:', error)
+                throw error
+              }
+            }}
+          />
+        )}
+      </>
+    )
+  }
+
   // Handle pending status - show normal UI
   return (
     <main className="p-8 text-foreground bg-background min-h-screen">
@@ -466,21 +499,22 @@ export default function EventPage() {
             (!isProspectSession && session && session.exercises && session.exercises.length > 0)) && (
             <Button
               onClick={async () => {
-                // Update session status to in_progress when Start Session button is clicked
+                // Update session status to in_progress immediately and redirect to in_progress view
                 if (session && session.status !== 'in_progress') {
                   try {
+                    const currentTime = await getServerTime()
                     await upsertSession({
                       id: session.id,
                       type: session.type,
                       person_id: session.person_id,
                       trainer_id: session.trainer_id,
                       start_time: session.start_time,
-                      started_at: session.started_at, // Keep existing started_at, will be set by onSessionStart when timer starts
+                      started_at: session.started_at || currentTime, // Set started_at if not already set
                       workout_id: session.workout_id,
                       converted: session.converted,
                       status: 'in_progress', // Set status to in_progress when Start Session button is clicked
                     })
-                    // Reload session data to reflect the status change
+                    // Reload session data to reflect the status change and trigger in_progress view
                     const sessionWithExercises = await fetchSessionWithExercises(id)
                     if (sessionWithExercises) {
                       setSession(sessionWithExercises)
@@ -489,7 +523,6 @@ export default function EventPage() {
                     console.error('Error updating session status:', error)
                   }
                 }
-                setStartSessionOpen(true)
               }}
               className="w-full bg-green-500 hover:bg-green-600 text-white cursor-pointer"
             >

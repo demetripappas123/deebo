@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Plus, X, Trash2, Play, Pause, RotateCcw } from 'lucide-react'
 import { SessionWithExercises } from '@/supabase/fetches/fetchsessions'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { upsertExerciseSet, upsertSessionExercise, upsertSession, upsertWorkoutExercises, upsertExerciseSets } from '@/supabase/upserts/upsertsession'
 import { getServerTime } from '@/supabase/utils/getServerTime'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
@@ -44,6 +45,7 @@ type StartSessionProps = {
   onSessionStart?: () => Promise<void>
   onSessionComplete: () => Promise<void>
   onCancel: () => void
+  onSessionCancel?: (withCharge: boolean) => Promise<void> // Optional callback for canceling with/without charge
 }
 
 export default function StartSession({
@@ -51,12 +53,14 @@ export default function StartSession({
   onSessionStart,
   onSessionComplete,
   onCancel,
+  onSessionCancel,
 }: StartSessionProps) {
   const [exercises, setExercises] = useState<TrackedExercise[]>([])
   const [loading, setLoading] = useState(false)
   const [exerciseLibrary, setExerciseLibrary] = useState<{ id: string; name: string }[]>([])
   const [openCombobox, setOpenCombobox] = useState<{ [key: number]: boolean }>({})
   const [searchValue, setSearchValue] = useState<{ [key: number]: string }>({})
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   
   // Timer state
   const [timeElapsed, setTimeElapsed] = useState(0) // in seconds
@@ -76,9 +80,38 @@ export default function StartSession({
     loadLibrary()
   }, [])
 
-  // Initialize exercises from session data
+  // localStorage key for this session
+  const storageKey = `session_workout_${session.id}`
+
+  // Load from localStorage or initialize from session data
   useEffect(() => {
     if (session.exercises) {
+      // Try to load from localStorage first
+      const savedData = localStorage.getItem(storageKey)
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData)
+          // Only use saved data if it's for the same session
+          if (parsed.sessionId === session.id) {
+            setExercises(parsed.exercises)
+            if (parsed.timeElapsed !== undefined) {
+              setTimeElapsed(parsed.timeElapsed)
+            }
+            if (parsed.isRunning !== undefined) {
+              setIsRunning(parsed.isRunning)
+            }
+            if (parsed.startTime !== undefined && parsed.startTime !== null) {
+              setStartTime(parsed.startTime)
+            }
+            return // Don't initialize from session if we loaded from localStorage
+          }
+        } catch (error) {
+          console.error('Error loading from localStorage:', error)
+          // Fall through to initialize from session
+        }
+      }
+
+      // Initialize from session data if no saved data
       const trackedExercises: TrackedExercise[] = (session.exercises || []).map((ex) => ({
         exercise_id: ex.exercise_id,
         exercise_name: ex.exercise_name || 'Unknown Exercise',
@@ -120,7 +153,7 @@ export default function StartSession({
       }))
       setExercises(trackedExercises)
     }
-  }, [session.exercises])
+  }, [session.exercises, session.id, storageKey])
 
   // Timer effect
   useEffect(() => {
@@ -165,6 +198,20 @@ export default function StartSession({
     }
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
+
+  // Save to localStorage whenever exercises change
+  useEffect(() => {
+    if (exercises.length > 0) {
+      const dataToSave = {
+        sessionId: session.id,
+        exercises,
+        timeElapsed,
+        isRunning,
+        startTime,
+      }
+      localStorage.setItem(storageKey, JSON.stringify(dataToSave))
+    }
+  }, [exercises, timeElapsed, isRunning, startTime, session.id, storageKey])
 
   const updateExerciseNotes = (index: number, notes: string) => {
     setExercises((prev) =>
@@ -261,6 +308,8 @@ export default function StartSession({
   const handleFinishSession = async () => {
     setLoading(true)
     try {
+      // Clear localStorage when finishing session
+      localStorage.removeItem(storageKey)
       // Filter out exercises without exercise_id (incomplete exercises)
       const validExercises = exercises.filter(ex => ex.exercise_id && ex.exercise_id.trim() !== '')
 
@@ -737,22 +786,87 @@ export default function StartSession({
           )}
         </div>
 
-        <div className="mt-8 pt-6 border-t border-border flex justify-end gap-3">
-          <Button
-            onClick={onCancel}
-            variant="outline"
-            className="bg-secondary hover:bg-secondary/80 text-secondary-foreground border-border cursor-pointer"
-          >
-            Cancel
-          </Button>
+        <div className="mt-8 pt-6 border-t border-border flex flex-col gap-3">
           <Button
             onClick={handleFinishSession}
             disabled={loading}
-            className="bg-green-500 hover:bg-green-600 text-white cursor-pointer px-8"
+            className="w-full bg-green-500 hover:bg-green-600 text-white cursor-pointer"
           >
             {loading ? 'Finishing...' : 'Finish Session'}
           </Button>
+          <Button
+            onClick={() => setCancelDialogOpen(true)}
+            variant="outline"
+            className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground border-destructive cursor-pointer"
+          >
+            Cancel Session
+          </Button>
         </div>
+
+        {/* Cancel Session Dialog */}
+        <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+          <DialogContent className="bg-card border-border text-foreground">
+            <DialogHeader>
+              <DialogTitle className="text-foreground">Cancel Session</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                How would you like to cancel this session?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <Button
+                type="button"
+                onClick={async () => {
+                  try {
+                    // Clear localStorage when canceling
+                    localStorage.removeItem(storageKey)
+                    if (onSessionCancel) {
+                      await onSessionCancel(true)
+                    } else {
+                      onCancel()
+                    }
+                    setCancelDialogOpen(false)
+                  } catch (error) {
+                    console.error('Error canceling session:', error)
+                    alert('Error canceling session. Please try again.')
+                  }
+                }}
+                className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground cursor-pointer"
+              >
+                Cancel with Charge
+              </Button>
+              <Button
+                type="button"
+                onClick={async () => {
+                  try {
+                    // Clear localStorage when canceling
+                    localStorage.removeItem(storageKey)
+                    if (onSessionCancel) {
+                      await onSessionCancel(false)
+                    } else {
+                      onCancel()
+                    }
+                    setCancelDialogOpen(false)
+                  } catch (error) {
+                    console.error('Error canceling session:', error)
+                    alert('Error canceling session. Please try again.')
+                  }
+                }}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
+              >
+                Cancel without Charge
+              </Button>
+            </div>
+            <DialogFooter>
+              <Button
+                onClick={() => setCancelDialogOpen(false)}
+                variant="outline"
+                className="bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </main>
   )
