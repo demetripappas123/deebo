@@ -9,13 +9,25 @@ import { DateRangeBounds } from '../utils/daterange'
  * Optionally filter by trainer_id (through person_packages)
  */
 export async function fetchTotalRevenue(trainerId?: string | null, dateRange?: DateRangeBounds): Promise<number> {
-  // Use provided date range or default to current month
+  // Use provided date range or default to current month up to today (MTD)
   let startDate: string
   let endDate: string
   
   if (dateRange) {
     startDate = dateRange.start.toISOString()
-    endDate = dateRange.end.toISOString()
+    // For current month, cap end date to today (MTD). For historical months, use full month.
+    const now = new Date()
+    const rangeEnd = new Date(dateRange.end)
+    const isCurrentMonth = rangeEnd.getMonth() === now.getMonth() && 
+                          rangeEnd.getFullYear() === now.getFullYear()
+    
+    if (isCurrentMonth) {
+      // Current month: use today as end date (MTD)
+      endDate = now.toISOString()
+    } else {
+      // Historical month: use full month
+      endDate = dateRange.end.toISOString()
+    }
   } else {
     // Default to current month up to today (MTD - Month To Date)
     const now = new Date()
