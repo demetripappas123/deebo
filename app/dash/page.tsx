@@ -20,8 +20,7 @@ import ChartSkeleton from '@/modules/dashboard/chartskeleton'
 import QuickMetricCard from '@/modules/dashboard/quickmetriccard'
 import ToggleRevenueCard from '@/modules/dashboard/togglerevenuecard'
 import LeadSourcesChart from '@/modules/dashboard/leadsourceschart'
-import { Target, Users, UserPlus, DollarSign, Calendar } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Users, UserPlus, DollarSign, Calendar } from 'lucide-react'
 import { DateRange, getDateRangeBounds } from '@/supabase/utils/daterange'
 import { subMinutes, addDays } from 'date-fns'
 
@@ -47,32 +46,6 @@ export default function DashboardPage() {
   const [upcomingSessions, setUpcomingSessions] = useState<Array<Session & { personName?: string }>>([])
   const [loadingSessions, setLoadingSessions] = useState(false)
 
-  const handleTrainerGoalsClick = async () => {
-    try {
-      // Fetch first trainer goal record from trainer_goals table
-      const { data: trainerGoals, error: trainerGoalsError } = await supabase
-        .from('trainer_goals')
-        .select('id')
-        .limit(1)
-
-      if (trainerGoalsError) {
-        console.error('Error fetching trainer goals:', trainerGoalsError)
-        alert('Error loading trainer goals. Please make sure the trainer_goals table exists.')
-        return
-      }
-
-      if (!trainerGoals || trainerGoals.length === 0) {
-        alert('No trainer goals found. Please create a trainer goal record first.')
-        return
-      }
-
-      // Navigate to first trainer goal's page
-      router.push(`/trainer/${trainerGoals[0].id}/goals`)
-    } catch (err) {
-      console.error('Error fetching trainer goals:', err)
-      alert('Error loading trainer goals. Please try again.')
-    }
-  }
 
   useEffect(() => {
     const loadMetrics = async () => {
@@ -346,15 +319,8 @@ export default function DashboardPage() {
 
   return (
     <div className="w-full h-full bg-[var(--bg-primary)] text-[var(--text-primary)] p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <Button
-          onClick={handleTrainerGoalsClick}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer flex items-center gap-2"
-        >
-          <Target className="h-5 w-5" />
-          Trainer Goals
-        </Button>
       </div>
 
       {/* Quick Metrics Row - Top */}

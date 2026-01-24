@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -33,7 +33,44 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<SessionType>(initialType)
   const [personId, setPersonId] = useState<string | null>(initialPersonId)
-  const [startTime, setStartTime] = useState<string>(new Date().toISOString().slice(0,16))
+  // Generate time slots in 15-minute intervals (12-hour format with AM/PM)
+  type TimeSlot = {
+    display: string // 12-hour format for display (e.g., "2:30 PM")
+    value: string // 24-hour format for storage (e.g., "14:30")
+  }
+
+  const generateTimeSlots = (): TimeSlot[] => {
+    const slots: TimeSlot[] = []
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+        const ampm = hour < 12 ? 'AM' : 'PM'
+        const display = `${hour12}:${String(minute).padStart(2, '0')} ${ampm}`
+        const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+        slots.push({ display, value })
+      }
+    }
+    return slots
+  }
+
+  const timeSlots = generateTimeSlots()
+
+  // Initialize with current date and nearest 15-minute time
+  const getInitialDate = (): string => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  }
+
+  const getInitialTime = (): string => {
+    const now = new Date()
+    const minutes = Math.round(now.getMinutes() / 15) * 15
+    return `${String(now.getHours()).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  }
+
+  const [startDate, setStartDate] = useState<string>(getInitialDate())
+  const [startTime, setStartTime] = useState<string>(getInitialTime())
+  const [isTimeDropdownOpen, setIsTimeDropdownOpen] = useState<boolean>(false)
+  const timeDropdownRef = useRef<HTMLDivElement>(null)
   const [clients, setClients] = useState<Client[]>([])
   const [prospects, setProspects] = useState<Prospect[]>([])
   const [loading, setLoading] = useState(false)
@@ -76,6 +113,23 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
     }
     loadPeople()
   }, [user])
+
+  // Handle click outside time dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (timeDropdownRef.current && !timeDropdownRef.current.contains(event.target as Node)) {
+        setIsTimeDropdownOpen(false)
+      }
+    }
+
+    if (isTimeDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isTimeDropdownOpen])
 
   // Load available person packages when client is selected and type is Client Session
   // This fetches person_packages for the selected client (personId) that are:
@@ -158,10 +212,14 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
     setLoading(true)
 
     try {
+      // Combine date and time into ISO string
+      const dateTimeString = `${startDate}T${startTime}:00`
+      const startDateTime = new Date(dateTimeString)
+      
       const newSession = await createSession({
         type,
         person_id: personId,
-        start_time: new Date(startTime).toISOString(), // Scheduled time
+        start_time: startDateTime.toISOString(), // Scheduled time
         trainer_id: user?.id || null,
         person_package_id: selectedPersonPackageId,
         converted: false,
@@ -174,7 +232,8 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
       setType('Client Session')
       setPersonId(null)
       setSelectedPersonPackageId(null)
-      setStartTime(new Date().toISOString().slice(0,16))
+      setStartDate(getInitialDate())
+      setStartTime(getInitialTime())
       // Close the dialog
       setOpen(false)
     } catch (err) {
@@ -289,13 +348,62 @@ export default function AddEventDialog({ initialPersonId = null, initialType = '
             </div>
           )}
 
-          {/* Date / Time */}
-          <input
-            type="datetime-local"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-          />
+          {/* Date and Time Selection */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                Time
+              </label>
+              <div className="relative" ref={timeDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsTimeDropdownOpen(!isTimeDropdownOpen)}
+                  className="w-full px-3 py-2 rounded-md bg-input border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer text-left flex items-center justify-between"
+                >
+                  <span>{timeSlots.find(slot => slot.value === startTime)?.display || 'Select time'}</span>
+                  <svg
+                    className={`w-4 h-4 transition-transform ${isTimeDropdownOpen ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {isTimeDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-1 bg-input border border-border rounded-md shadow-lg max-h-[200px] overflow-y-auto">
+                    {timeSlots.map((slot) => (
+                      <button
+                        key={slot.value}
+                        type="button"
+                        onClick={() => {
+                          setStartTime(slot.value)
+                          setIsTimeDropdownOpen(false)
+                        }}
+                        className={`w-full px-3 py-2 text-left text-foreground hover:bg-muted focus:bg-muted focus:outline-none ${
+                          startTime === slot.value ? 'bg-muted/50' : ''
+                        }`}
+                      >
+                        {slot.display}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Buttons */}
           <div className="flex justify-end gap-2">

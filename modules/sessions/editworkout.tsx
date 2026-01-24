@@ -78,6 +78,24 @@ export default function EditWorkout({
   const [sessionStartTime, setSessionStartTime] = useState<string>('')
   const [sessionEndTime, setSessionEndTime] = useState<string>('')
 
+  // Helper function to round time to nearest 15-minute interval
+  const roundTo15Minutes = (dateTimeString: string): string => {
+    if (!dateTimeString) return dateTimeString
+    const date = new Date(dateTimeString)
+    const minutes = date.getMinutes()
+    const roundedMinutes = Math.round(minutes / 15) * 15
+    date.setMinutes(roundedMinutes)
+    date.setSeconds(0)
+    date.setMilliseconds(0)
+    // Return in datetime-local format (YYYY-MM-DDTHH:mm)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const mins = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${mins}`
+  }
+
   // Determine if ranges are allowed based on session status
   const allowRanges = sessionStatus !== 'in_progress' && sessionStatus !== 'completed'
 
@@ -276,6 +294,106 @@ export default function EditWorkout({
     setExercises(updated)
   }
 
+  // Helper function to get the next input field
+  const getNextInput = (exerciseIndex: number, setIndex: number, fieldIndex: number, direction: 'next' | 'prev'): HTMLElement | null => {
+    const fieldOrder = ['weight', 'reps', 'rir', 'rpe', 'notes'] as const
+    const currentExercise = exercises[exerciseIndex]
+    if (!currentExercise) return null
+
+    let nextFieldIndex = fieldIndex
+    let nextSetIndex = setIndex
+    let nextExerciseIndex = exerciseIndex
+
+    if (direction === 'next') {
+      nextFieldIndex++
+      // If we've passed the last field (notes), move to next set
+      if (nextFieldIndex >= fieldOrder.length) {
+        nextFieldIndex = 0
+        nextSetIndex++
+        // If we've passed the last set, move to next exercise's first set
+        if (nextSetIndex >= currentExercise.sets.length) {
+          nextSetIndex = 0
+          nextExerciseIndex++
+          // If we've passed the last exercise, wrap to first
+          if (nextExerciseIndex >= exercises.length) {
+            nextExerciseIndex = 0
+          }
+        }
+      }
+    } else {
+      nextFieldIndex--
+      // If we've gone before the first field (weight), move to previous set
+      if (nextFieldIndex < 0) {
+        nextFieldIndex = fieldOrder.length - 1
+        nextSetIndex--
+        // If we've gone before the first set, move to previous exercise's last set
+        if (nextSetIndex < 0) {
+          nextExerciseIndex--
+          // If we've gone before the first exercise, wrap to last
+          if (nextExerciseIndex < 0) {
+            nextExerciseIndex = exercises.length - 1
+          }
+          const prevExercise = exercises[nextExerciseIndex]
+          nextSetIndex = prevExercise && prevExercise.sets.length > 0 ? prevExercise.sets.length - 1 : 0
+        }
+      }
+    }
+
+    const nextExercise = exercises[nextExerciseIndex]
+    if (!nextExercise || !nextExercise.sets[nextSetIndex]) return null
+
+    // Find the input element by data attributes
+    const fieldName = fieldOrder[nextFieldIndex]
+    const inputId = `input-${nextExerciseIndex}-${nextSetIndex}-${fieldName}`
+    return document.getElementById(inputId) as HTMLElement
+  }
+
+  // Handle keyboard navigation
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    exerciseIndex: number,
+    setIndex: number,
+    fieldName: 'weight' | 'reps' | 'rir' | 'rpe' | 'notes'
+  ) => {
+    const fieldOrder = ['weight', 'reps', 'rir', 'rpe', 'notes'] as const
+    const fieldIndex = fieldOrder.indexOf(fieldName)
+
+    // Handle Tab or Arrow keys
+    if (e.key === 'Tab' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      if (e.key === 'Tab' && e.shiftKey) {
+        // Shift+Tab goes to previous field
+        e.preventDefault()
+        const prevInput = getNextInput(exerciseIndex, setIndex, fieldIndex, 'prev')
+        if (prevInput) {
+          prevInput.focus()
+          if (prevInput instanceof HTMLInputElement) {
+            prevInput.select()
+          }
+        }
+      } else if (e.key === 'Tab' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        // Tab, ArrowRight, or ArrowDown goes to next field
+        e.preventDefault()
+        const nextInput = getNextInput(exerciseIndex, setIndex, fieldIndex, 'next')
+        if (nextInput) {
+          nextInput.focus()
+          if (nextInput instanceof HTMLInputElement) {
+            nextInput.select()
+          }
+        }
+      }
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      // ArrowLeft or ArrowUp goes to previous field
+      e.preventDefault()
+      const prevInput = getNextInput(exerciseIndex, setIndex, fieldIndex, 'prev')
+      if (prevInput) {
+        prevInput.focus()
+        if (prevInput instanceof HTMLInputElement) {
+          prevInput.select()
+        }
+      }
+    }
+  }
+
   const handleSave = async () => {
     setLoading(true)
     try {
@@ -330,8 +448,12 @@ export default function EditWorkout({
                 <label className="block text-sm font-medium mb-1 text-white">Start Time</label>
                 <Input
                   type="datetime-local"
+                  step="900"
                   value={sessionStartTime}
-                  onChange={(e) => setSessionStartTime(e.target.value)}
+                  onChange={(e) => {
+                    const roundedTime = roundTo15Minutes(e.target.value)
+                    setSessionStartTime(roundedTime)
+                  }}
                   className="bg-[#111111] text-white border-[#2a2a2a]"
                 />
               </div>
@@ -339,8 +461,12 @@ export default function EditWorkout({
                 <label className="block text-sm font-medium mb-1 text-white">End Time</label>
                 <Input
                   type="datetime-local"
+                  step="900"
                   value={sessionEndTime}
-                  onChange={(e) => setSessionEndTime(e.target.value)}
+                  onChange={(e) => {
+                    const roundedTime = roundTo15Minutes(e.target.value)
+                    setSessionEndTime(roundedTime)
+                  }}
                   className="bg-[#111111] text-white border-[#2a2a2a]"
                 />
               </div>
@@ -459,6 +585,7 @@ export default function EditWorkout({
                     <div key={setIdx} className="group grid grid-cols-6 gap-2 text-xs items-center">
                       <div className="text-gray-300">{set.set_number}</div>
                       <Input
+                        id={`input-${index}-${setIdx}-weight`}
                         type={allowRanges ? "text" : "number"}
                         step={allowRanges ? undefined : "0.01"}
                         value={set.weight ?? ''}
@@ -471,10 +598,12 @@ export default function EditWorkout({
                             updateSet(index, setIdx, 'weight', e.target.value ? parseFloat(e.target.value) : null)
                           }
                         }}
+                        onKeyDown={(e) => handleKeyDown(e, index, setIdx, 'weight')}
                         placeholder={allowRanges ? "e.g. 8 or 8-12" : "-"}
                         className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <Input
+                        id={`input-${index}-${setIdx}-reps`}
                         type={allowRanges ? "text" : "number"}
                         value={set.reps ?? ''}
                         onChange={(e) => {
@@ -484,10 +613,12 @@ export default function EditWorkout({
                             updateSet(index, setIdx, 'reps', e.target.value ? parseInt(e.target.value) : null)
                           }
                         }}
+                        onKeyDown={(e) => handleKeyDown(e, index, setIdx, 'reps')}
                         placeholder={allowRanges ? "e.g. 8 or 8-12" : "-"}
                         className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <Input
+                        id={`input-${index}-${setIdx}-rir`}
                         type={allowRanges ? "text" : "number"}
                         value={set.rir ?? ''}
                         onChange={(e) => {
@@ -497,10 +628,12 @@ export default function EditWorkout({
                             updateSet(index, setIdx, 'rir', e.target.value ? parseInt(e.target.value) : null)
                           }
                         }}
+                        onKeyDown={(e) => handleKeyDown(e, index, setIdx, 'rir')}
                         placeholder={allowRanges ? "e.g. 2 or 1-3" : "-"}
                         className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <Input
+                        id={`input-${index}-${setIdx}-rpe`}
                         type={allowRanges ? "text" : "number"}
                         step={allowRanges ? undefined : "0.5"}
                         value={set.rpe ?? ''}
@@ -511,14 +644,17 @@ export default function EditWorkout({
                             updateSet(index, setIdx, 'rpe', e.target.value ? parseFloat(e.target.value) : null)
                           }
                         }}
+                        onKeyDown={(e) => handleKeyDown(e, index, setIdx, 'rpe')}
                         placeholder={allowRanges ? "e.g. 7 or 6-8" : "-"}
                         className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs focus:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                       />
                       <div className="flex items-center gap-1">
                         <Input
+                          id={`input-${index}-${setIdx}-notes`}
                           type="text"
                           value={set.notes ?? ''}
                           onChange={(e) => updateSet(index, setIdx, 'notes', e.target.value || null)}
+                          onKeyDown={(e) => handleKeyDown(e, index, setIdx, 'notes')}
                           placeholder="-"
                           className="bg-transparent border-none text-gray-300 p-0 h-6 text-xs truncate flex-1 focus:ring-0"
                         />
