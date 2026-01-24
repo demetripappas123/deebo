@@ -118,3 +118,4 @@ Then use `chartColors` in ECharts options.
 - System preference is used as default if no saved preference
 
 
+

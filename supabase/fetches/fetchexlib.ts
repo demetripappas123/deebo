@@ -12,13 +12,44 @@ export type ExerciseLibraryItem = {
 
 export async function fetchExercises(): Promise<ExerciseLibraryItem[]> {
   try {
+    // Fetch from public.exercises table (Supabase defaults to public schema)
+    // Using same supabase client as other working fetches (fetchPeople, etc.)
+    // Try select('*') first to match working pattern, then we can filter columns
     const { data, error } = await supabase
-      .from('exercise_library')
+      .from('exercises')
       .select('*')
       .order('name', { ascending: true })
 
-    if (error) throw error
-    return data as ExerciseLibraryItem[]
+    if (error) {
+      console.error('Supabase error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
+      
+      // If table doesn't exist (404), provide helpful message
+      if (error.code === 'PGRST116' || error.message.includes('404') || error.message.includes('relation') || error.message.includes('does not exist')) {
+        console.error('❌ Table "public.exercises" does not exist or is not accessible.')
+        console.error('   Please check:')
+        console.error('   1. Table exists in Supabase database (public.exercises)')
+        console.error('   2. Table name is correct (exercises)')
+        console.error('   3. Supabase URL and API key are correct')
+      }
+      
+      throw error
+    }
+    
+    // Map data to ensure all fields are present (handle missing columns gracefully)
+    return (data || []).map(item => ({
+      id: item.id,
+      name: item.name || '',
+      video_url: item.video_url || null,
+      gif_url: item.gif_url || null,
+      img_url: item.img_url || null,
+      variations: item.variations || null,
+      created_at: item.created_at || new Date().toISOString(),
+    })) as ExerciseLibraryItem[]
   } catch (err) {
     console.error('Error fetching exercises:', err)
     return []
@@ -44,7 +75,7 @@ export async function fetchExercisesPaginated(
 }> {
   try {
     let query = supabase
-      .from('exercise_library')
+      .from('exercises')
       .select('*', { count: 'exact' })
 
     // Apply search filter if provided

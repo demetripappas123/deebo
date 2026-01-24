@@ -29,7 +29,7 @@ export async function fetchDayExercises(dayId: string, trainerId?: string | null
         notes,
         weight_used,
         exercise_number,
-        exercise_library:exercise_def_id (
+        exercises:exercise_def_id (
           id,
           name
         )
@@ -55,7 +55,7 @@ export async function fetchDayExercises(dayId: string, trainerId?: string | null
     const exercises: DayExerciseWithName[] = data.map((ex: any) => ({
       day_id: ex.day_id,
       exercise_def_id: ex.exercise_def_id,
-      exercise_name: ex.exercise_library?.name || 'Unknown Exercise',
+      exercise_name: ex.exercises?.name || 'Unknown Exercise',
       sets: ex.sets,
       reps: ex.reps,
       rir: ex.rir,

@@ -7,6 +7,9 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Plus, Trash } from 'lucide-react'
 import { fetchExercises } from '@/supabase/fetches/fetchexlib'
+import { fetchUserExercises } from '@/supabase/fetches/fetchuserexercises'
+import { fetchCommunityExercises } from '@/supabase/fetches/fetchcommunityexercises'
+import { useAuth } from '@/context/authcontext'
 import {
   Command,
   CommandInput,
@@ -66,6 +69,7 @@ export default function EditWorkout({
   mode = 'create',
   hideDialog = false,
 }: EditWorkoutProps) {
+  const { user } = useAuth()
   const [exercises, setExercises] = useState<LocalExercise[]>([])
   const [exerciseLibrary, setExerciseLibrary] = useState<{ id: string; name: string }[]>([])
   const [openCombobox, setOpenCombobox] = useState<{ [key: number]: boolean }>({})
@@ -149,7 +153,7 @@ export default function EditWorkout({
     }
   }, [open, initialExercises])
 
-  // Fetch exercise library when dialog opens
+  // Fetch exercise library when dialog opens (includes base, user, and community exercises)
   useEffect(() => {
     const loadLibrary = async () => {
       if (!open) {
@@ -158,11 +162,34 @@ export default function EditWorkout({
       }
       console.log('Loading exercise library...')
       try {
-        const data = await fetchExercises()
-        console.log('Exercise library fetched:', data)
-        console.log('Exercise library count:', data.length)
-        if (data && data.length > 0) {
-          setExerciseLibrary(data)
+        // Fetch all exercise types in parallel
+        const [baseExercises, userExercises, communityExercises] = await Promise.all([
+          fetchExercises(),
+          fetchUserExercises(user?.id),
+          fetchCommunityExercises()
+        ])
+        
+        // Combine all exercises into a single array
+        const allExercises = [
+          ...baseExercises.map(ex => ({ id: ex.id, name: ex.name })),
+          ...userExercises.map(ex => ({ id: ex.id, name: ex.name })),
+          ...communityExercises.map(ex => ({ id: ex.id, name: ex.name }))
+        ]
+        
+        // Remove duplicates by id (in case same exercise exists in multiple sources)
+        const uniqueExercises = Array.from(
+          new Map(allExercises.map(ex => [ex.id, ex])).values()
+        ).sort((a, b) => a.name.localeCompare(b.name))
+        
+        console.log('Exercise library fetched:', {
+          base: baseExercises.length,
+          user: userExercises.length,
+          community: communityExercises.length,
+          total: uniqueExercises.length
+        })
+        
+        if (uniqueExercises.length > 0) {
+          setExerciseLibrary(uniqueExercises)
           console.log('Exercise library set successfully')
         } else {
           console.warn('Exercise library is empty')
@@ -174,7 +201,7 @@ export default function EditWorkout({
       }
     }
     loadLibrary()
-  }, [open])
+  }, [open, user?.id])
 
   const addExercise = () => {
     setExercises((prev) => [
@@ -227,6 +254,11 @@ export default function EditWorkout({
   const removeSet = (exerciseIndex: number, setIndex: number) => {
     const updated = [...exercises]
     updated[exerciseIndex].sets = updated[exerciseIndex].sets.filter((_, i) => i !== setIndex)
+    // Re-number sets after removal to keep them sequential
+    updated[exerciseIndex].sets = updated[exerciseIndex].sets.map((set, idx) => ({
+      ...set,
+      set_number: idx + 1,
+    }))
     setExercises(updated)
   }
 
@@ -424,7 +456,7 @@ export default function EditWorkout({
                     <div>Notes</div>
                   </div>
                   {ex.sets.map((set, setIdx) => (
-                    <div key={setIdx} className="grid grid-cols-6 gap-2 text-xs items-center">
+                    <div key={setIdx} className="group grid grid-cols-6 gap-2 text-xs items-center">
                       <div className="text-gray-300">{set.set_number}</div>
                       <Input
                         type={allowRanges ? "text" : "number"}
@@ -492,13 +524,26 @@ export default function EditWorkout({
                         />
                         <button
                           onClick={() => removeSet(index, setIdx)}
-                          className="p-0.5 text-red-400 hover:text-red-300 cursor-pointer opacity-0 group-hover:opacity-100"
+                          className="p-0.5 text-red-400 hover:text-red-300 cursor-pointer"
+                          title="Remove set"
                         >
                           <Trash size={10} />
                         </button>
                       </div>
                     </div>
                   ))}
+                  {/* Add Set Button - shown when sets exist */}
+                  <div className="mt-2 pt-2 border-t border-[#2a2a2a]">
+                    <Button
+                      onClick={() => addSet(index)}
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-6 px-2 text-gray-400 hover:text-white cursor-pointer w-full"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Set
+                    </Button>
+                  </div>
                 </div>
               )}
               {ex.sets.length === 0 && (

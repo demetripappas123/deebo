@@ -25,7 +25,7 @@ export interface SessionWithExercises extends Session {
 export interface SessionExercise {
   id: string
   workout_id: string
-  exercise_id: string // UUID from exercise_library
+  exercise_id: string // UUID from exercises
   position: number
   notes: string | null
   created_at: string
@@ -155,7 +155,7 @@ export async function fetchSessionWithExercises(sessionId: string): Promise<Sess
     .from('workout_exercises')
     .select(`
       *,
-      exercise_library:exercise_id (
+      exercises:exercise_id (
         id,
         name
       )
@@ -188,14 +188,14 @@ export async function fetchSessionWithExercises(sessionId: string): Promise<Sess
         // Don't throw - return exercise with empty sets
         return {
           ...exercise,
-          exercise_name: (exercise.exercise_library as any)?.name,
+          exercise_name: (exercise.exercises as any)?.name,
           sets: [],
         }
       }
 
       return {
         ...exercise,
-        exercise_name: (exercise.exercise_library as any)?.name,
+        exercise_name: (exercise.exercises as any)?.name,
         sets: sets ?? [],
       }
     })
@@ -215,7 +215,7 @@ export async function fetchWorkoutExercises(workoutId: string): Promise<SessionE
     .from('workout_exercises')
     .select(`
       *,
-      exercise_library:exercise_id (
+      exercises:exercise_id (
         id,
         name
       )
@@ -231,7 +231,7 @@ export async function fetchWorkoutExercises(workoutId: string): Promise<SessionE
 
   return (data || []).map((exercise) => ({
     ...exercise,
-    exercise_name: (exercise.exercise_library as any)?.name,
+    exercise_name: (exercise.exercises as any)?.name,
   }))
 }
 

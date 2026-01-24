@@ -162,33 +162,48 @@ html.dark {
   body {
     @apply bg-background text-foreground;
   }
-}
-
-/* Custom scrollbar styling */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--orange-primary);
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--orange-hover);
-  cursor: pointer;
-}
-
-/* Firefox scrollbar */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--orange-primary) var(--bg-primary);
-  cursor: pointer;
+  
+  /* Global scrollbar styling for all scrollbars app-wide */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary) var(--muted);
+  }
+  
+  /* Webkit scrollbar (Chrome, Safari, Edge) */
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: var(--muted);
+    border-radius: 5px;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 5px;
+    border: 2px solid var(--muted);
+  }
+  
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--orange-hover, #fb923c);
+  }
+  
+  /* Search input selection/highlight styling - use brand colors */
+  input::selection,
+  textarea::selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+  
+  /* Ensure all inputs have consistent styling */
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  textarea {
+    caret-color: var(--primary);
+  }
 }

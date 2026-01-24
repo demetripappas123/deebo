@@ -45,7 +45,7 @@ export async function fetchWorkoutsWithData(trainerId: string): Promise<WorkoutW
     .from('workout_exercises')
     .select(`
       *,
-      exercise_library:exercise_id (
+      exercises:exercise_id (
         id,
         name
       )
@@ -100,7 +100,7 @@ export async function fetchWorkoutsWithData(trainerId: string): Promise<WorkoutW
     const workoutExercises = exercisesMap.get(workout.id) || []
     const exercisesWithSets = workoutExercises.map(exercise => ({
       ...exercise,
-      exercise_name: (exercise.exercise_library as any)?.name,
+      exercise_name: (exercise.exercises as any)?.name,
       sets: setsMap.get(exercise.id) || [],
     }))
 

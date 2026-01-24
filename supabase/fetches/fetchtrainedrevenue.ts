@@ -23,7 +23,11 @@ export async function fetchTrainedRevenue(trainerId?: string | null, dateRange?:
     fetchPackages(),
   ])
   
-  let clientSessions = sessions.filter(s => s.type === 'Client Session')
+  // Filter for completed client sessions only
+  let clientSessions = sessions.filter(s => 
+    s.type === 'Client Session' && 
+    s.status === 'completed'
+  )
 
   // Apply date range filter if provided (use started_at or end_time, prefer started_at)
   if (dateRange) {

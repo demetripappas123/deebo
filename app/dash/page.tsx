@@ -46,7 +46,6 @@ export default function DashboardPage() {
   const [loadingLeads, setLoadingLeads] = useState(false)
   const [upcomingSessions, setUpcomingSessions] = useState<Array<Session & { personName?: string }>>([])
   const [loadingSessions, setLoadingSessions] = useState(false)
-  const [dateRange, setDateRange] = useState<DateRange>('monthly')
 
   const handleTrainerGoalsClick = async () => {
     try {
@@ -80,35 +79,41 @@ export default function DashboardPage() {
       if (!user) return
       try {
         setError(null)
-        const rangeBounds = getDateRangeBounds(dateRange)
-        const metrics = await fetchDashboardMetricsProgressive(user.id, rangeBounds)
+        // Revenue uses monthly, bookings use daily
+        const revenueRangeBounds = getDateRangeBounds('monthly')
+        const bookingsRangeBounds = getDateRangeBounds('today')
+        
+        // Fetch metrics with different date ranges
+        const bookingsMetrics = await fetchDashboardMetricsProgressive(user.id, bookingsRangeBounds)
+        const revenueMetrics = await fetchDashboardMetricsProgressive(user.id, revenueRangeBounds)
 
         // Load all metrics in parallel, update state as each completes
-        metrics.closeRate
+        bookingsMetrics.closeRate
           .then(value => setCloseRate(value))
           .catch(err => console.error('Error loading close rate:', err))
         
-        metrics.showRate
+        bookingsMetrics.showRate
           .then(value => setShowRate(value))
           .catch(err => console.error('Error loading show rate:', err))
         
-        metrics.averageBookings
+        bookingsMetrics.averageBookings
           .then(value => setAverageBookings(value))
           .catch(err => console.error('Error loading average bookings:', err))
         
-        metrics.trainedRevenue
-          .then(value => setTrainedRevenue(value))
-          .catch(err => console.error('Error loading trained revenue:', err))
-        
-        metrics.hourlyAverage
+        bookingsMetrics.hourlyAverage
           .then(value => setHourlyAverage(value))
           .catch(err => console.error('Error loading hourly average:', err))
         
-        metrics.mtdRevenue
+        // Revenue metrics use monthly
+        revenueMetrics.trainedRevenue
+          .then(value => setTrainedRevenue(value))
+          .catch(err => console.error('Error loading trained revenue:', err))
+        
+        revenueMetrics.mtdRevenue
           .then(value => setMtdRevenue(value))
           .catch(err => console.error('Error loading MTD revenue:', err))
         
-        metrics.projectedRevenue
+        revenueMetrics.projectedRevenue
           .then(value => setProjectedRevenue(value))
           .catch(err => console.error('Error loading projected revenue:', err))
       } catch (err) {
@@ -118,18 +123,19 @@ export default function DashboardPage() {
     }
 
     loadMetrics()
-  }, [user, dateRange])
+  }, [user])
 
   useEffect(() => {
     const loadQuickMetrics = async () => {
       if (!user) return
       setLoadingQuickMetrics(true)
       try {
-        const rangeBounds = getDateRangeBounds(dateRange)
+        // All metrics use monthly as default
+        const defaultRangeBounds = getDateRangeBounds('monthly')
         const [clients, leads, payments, sources, prospects] = await Promise.all([
-          fetchNewClientsThisMonth(user.id, rangeBounds),
-          fetchNewLeadsThisMonth(user.id, rangeBounds),
-          fetchSuccessfulPaymentsThisMonth(user.id, rangeBounds),
+          fetchNewClientsThisMonth(user.id, defaultRangeBounds),
+          fetchNewLeadsThisMonth(user.id, defaultRangeBounds),
+          fetchSuccessfulPaymentsThisMonth(user.id, defaultRangeBounds),
           fetchLeadSources(user.id),
           fetchProspectsForScatter(user.id),
         ])
@@ -146,7 +152,7 @@ export default function DashboardPage() {
     }
 
     loadQuickMetrics()
-  }, [user, dateRange])
+  }, [user])
 
   useEffect(() => {
     const loadNewLeads = async () => {
@@ -351,50 +357,6 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* Date Range Toggle */}
-      <div className="flex items-center gap-2 mb-6">
-        <button
-          onClick={() => setDateRange('today')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-            dateRange === 'today'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-[var(--bg-secondary)] border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-secondary)]'
-          }`}
-        >
-          Today
-        </button>
-        <button
-          onClick={() => setDateRange('yesterday')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-            dateRange === 'yesterday'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
-          }`}
-        >
-          Yesterday
-        </button>
-        <button
-          onClick={() => setDateRange('weekly')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-            dateRange === 'weekly'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
-          }`}
-        >
-          Weekly
-        </button>
-        <button
-          onClick={() => setDateRange('monthly')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer ${
-            dateRange === 'monthly'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
-          }`}
-        >
-          Monthly
-        </button>
-      </div>
-      
       {/* Quick Metrics Row - Top */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
         <QuickMetricCard
@@ -410,18 +372,14 @@ export default function DashboardPage() {
           loading={loadingQuickMetrics}
         />
         <QuickMetricCard
-          title="Successful Payments"
+          title="Audit"
           value={successfulPayments}
           icon={<DollarSign className="h-4 w-4" />}
           loading={loadingQuickMetrics}
         />
         <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-[var(--text-secondary)]">
-              {dateRange === 'today' ? "Today's Bookings" : 
-               dateRange === 'yesterday' ? "Yesterday's Bookings" :
-               dateRange === 'weekly' ? "Weekly Bookings" : "Monthly Bookings"}
-            </h3>
+            <h3 className="text-sm font-medium text-[var(--text-secondary)]">Today's Bookings</h3>
             <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
           </div>
           {averageBookings !== null ? (
@@ -441,17 +399,17 @@ export default function DashboardPage() {
 
       {/* Revenue and Lead Sources Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Toggleable Revenue Card */}
+        {/* Toggleable Revenue Card - Always uses monthly */}
         <ToggleRevenueCard
           mtdRevenue={mtdRevenue}
           projectedRevenue={projectedRevenue}
           trainedRevenue={trainedRevenue}
-          dateRange={dateRange}
+          dateRange="monthly"
           trainerId={user?.id}
         />
 
         {/* Lead Sources Chart */}
-        <LeadSourcesChart sources={leadSources} prospects={prospectsForScatter} loading={loadingQuickMetrics} dateRange={dateRange} />
+        <LeadSourcesChart sources={leadSources} prospects={prospectsForScatter} loading={loadingQuickMetrics} dateRange="monthly" />
       </div>
 
       {/* Bottom Row: All Other Metrics - Close Rate, Show Rate, Hourly Average, Tasks, and Upcoming Sessions */}

@@ -193,10 +193,11 @@ async function fetchTrainedRevenueForPeriod(
     fetchPackages(),
   ])
 
-  // Filter client sessions within date range
+  // Filter for completed client sessions only, within date range
   let clientSessions = sessions.filter(
     (s) =>
       s.type === 'Client Session' &&
+      s.status === 'completed' &&
       s.person_package_id !== null &&
       s.person_package_id !== undefined
   )

@@ -17,11 +17,12 @@ export async function fetchTotalRevenue(trainerId?: string | null, dateRange?: D
     startDate = dateRange.start.toISOString()
     endDate = dateRange.end.toISOString()
   } else {
+    // Default to current month up to today (MTD - Month To Date)
     const now = new Date()
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+    // Use current date/time, not end of month
+    endDate = now.toISOString()
     startDate = startOfMonth.toISOString()
-    endDate = endOfMonth.toISOString()
   }
   
   // If trainerId is provided, we need to filter through person_packages

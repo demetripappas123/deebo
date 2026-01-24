@@ -24,7 +24,7 @@ import EditWorkout from '@/modules/sessions/editworkout'
 import AddEventDialog from '@/modules/calendar/addevent'
 import WorkoutCalendar from '@/modules/clients/workoutcalendar'
 import AssignProgramWorkout from '@/modules/clients/assignprogramworkout'
-import { upsertSession, upsertSessionExercise, upsertExerciseSet } from '@/supabase/upserts/upsertsession'
+import { upsertSession, upsertSessionExercise, upsertExerciseSet, upsertWorkoutExercises, upsertExerciseSets } from '@/supabase/upserts/upsertsession'
 import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
 import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar, List, Check } from 'lucide-react'
@@ -1323,14 +1323,6 @@ export default function PersonPage() {
                 }
                 const workoutId = workoutToEdit.id
 
-                // Delete all existing exercises for this workout (cascade will handle sets)
-                const { error: deleteError } = await supabase
-                  .from('workout_exercises')
-                  .delete()
-                  .eq('workout_id', workoutId)
-
-                if (deleteError) throw deleteError
-
                 // Filter out exercises without valid exercise_id
                 const validExercises = data.exercises.filter(ex => ex.exercise_id && ex.exercise_id.trim() !== '')
                 
@@ -1343,31 +1335,34 @@ export default function PersonPage() {
                   alert(`Warning: ${data.exercises.length - validExercises.length} exercise(s) without a selected exercise were skipped.`)
                 }
 
-                // Create new exercises and sets (using workout_id)
-                // Use array index as position to ensure 0-indexed positions
+                // Use smart update function to handle exercises intelligently
+                const exerciseData = validExercises.map((ex, index) => ({
+                  exercise_id: ex.exercise_id,
+                  position: index,
+                  notes: ex.notes || null,
+                }))
+
+                // Upsert exercises using smart update (compares and updates/inserts/deletes as needed)
+                const updatedExercises = await upsertWorkoutExercises(workoutId, exerciseData)
+
+                // Now update sets for each exercise using smart update
                 for (let i = 0; i < validExercises.length; i++) {
                   const exercise = validExercises[i]
+                  const updatedExercise = updatedExercises[i]
                   
-                  const sessionExercise = await upsertSessionExercise({
-                    workout_id: workoutId,
-                    exercise_id: exercise.exercise_id,
-                    position: i, // Always use array index to ensure positions start at 0
-                    notes: exercise.notes || null,
-                  })
+                  if (updatedExercise && updatedExercise.id) {
+                    const setData = exercise.sets.map((set, idx) => ({
+                      set_number: idx + 1, // Re-number sets sequentially
+                      // Convert number inputs to numrange format for database
+                      weight: set.weight !== null && set.weight !== undefined ? parseRangeInput(String(set.weight)) : null,
+                      reps: set.reps !== null && set.reps !== undefined ? parseRangeInput(String(set.reps)) : null,
+                      rir: set.rir !== null && set.rir !== undefined ? parseRangeInput(String(set.rir)) : null,
+                      rpe: set.rpe !== null && set.rpe !== undefined ? parseRangeInput(String(set.rpe)) : null,
+                      notes: set.notes ?? null,
+                    }))
 
-                  if (exercise.sets && exercise.sets.length > 0) {
-                    for (const set of exercise.sets) {
-                      await upsertExerciseSet({
-                        session_exercise_id: sessionExercise.id,
-                        set_number: set.set_number,
-                        // Convert number inputs to numrange format for database
-                        weight: set.weight !== null && set.weight !== undefined ? parseRangeInput(String(set.weight)) : null,
-                        reps: set.reps !== null && set.reps !== undefined ? parseRangeInput(String(set.reps)) : null,
-                        rir: set.rir !== null && set.rir !== undefined ? parseRangeInput(String(set.rir)) : null,
-                        rpe: set.rpe !== null && set.rpe !== undefined ? parseRangeInput(String(set.rpe)) : null,
-                        notes: set.notes ?? null,
-                      })
-                    }
+                    // Use smart update for sets (compares and updates/inserts/deletes as needed)
+                    await upsertExerciseSets(updatedExercise.id, setData)
                   }
                 }
 
