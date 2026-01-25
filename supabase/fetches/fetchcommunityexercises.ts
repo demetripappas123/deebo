@@ -2,15 +2,17 @@ import { supabase } from '@/supabase/supabaseClient'
 import { ExerciseLibraryItem } from './fetchexlib'
 
 export type CommunityExercise = ExerciseLibraryItem & {
-  created_by?: string | null
+  trainer_id: string | null
   created_at: string
 }
 
 export async function fetchCommunityExercises(): Promise<CommunityExercise[]> {
   try {
+    // Fetch from unified exercises table where is_private = false (community exercises)
     const { data, error } = await supabase
-      .from('community_exercises')
+      .from('exercises')
       .select('*')
+      .eq('is_private', false)
       .order('name', { ascending: true })
 
     if (error) {
@@ -26,7 +28,7 @@ export async function fetchCommunityExercises(): Promise<CommunityExercise[]> {
       img_url: item.img_url || null,
       variations: item.variations || null,
       created_at: item.created_at || new Date().toISOString(),
-      created_by: item.created_by || null,
+      trainer_id: item.trainer_id,
     })) as CommunityExercise[]
   } catch (err) {
     console.error('Error fetching community exercises:', err)

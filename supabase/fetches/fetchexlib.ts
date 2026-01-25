@@ -12,12 +12,11 @@ export type ExerciseLibraryItem = {
 
 export async function fetchExercises(): Promise<ExerciseLibraryItem[]> {
   try {
-    // Fetch from public.exercises table (Supabase defaults to public schema)
-    // Using same supabase client as other working fetches (fetchPeople, etc.)
-    // Try select('*') first to match working pattern, then we can filter columns
+    // Fetch base exercises (where trainer_id is null) from unified exercises table
     const { data, error } = await supabase
       .from('exercises')
       .select('*')
+      .is('trainer_id', null)
       .order('name', { ascending: true })
 
     if (error) {
@@ -77,6 +76,7 @@ export async function fetchExercisesPaginated(
     let query = supabase
       .from('exercises')
       .select('*', { count: 'exact' })
+      .is('trainer_id', null) // Only base exercises
 
     // Apply search filter if provided
     if (searchQuery && searchQuery.trim()) {

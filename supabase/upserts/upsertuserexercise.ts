@@ -19,17 +19,18 @@ export async function upsertUserExercise(exercise: UserExerciseInput): Promise<U
       gif_url: exercise.gif_url?.trim() || null,
       img_url: exercise.img_url?.trim() || null,
       variations: exercise.variations || null,
-      user_id: exercise.user_id,
+      trainer_id: exercise.user_id, // Use trainer_id instead of user_id
+      is_private: true, // Private trainer exercises
       updated_at: new Date().toISOString(),
     }
 
     if (exercise.id) {
       // Update existing exercise
       const { data, error } = await supabase
-        .from('user_exercises')
+        .from('exercises')
         .update(exerciseData)
         .eq('id', exercise.id)
-        .eq('user_id', exercise.user_id)
+        .eq('trainer_id', exercise.user_id)
         .select()
         .single()
 
@@ -38,7 +39,7 @@ export async function upsertUserExercise(exercise: UserExerciseInput): Promise<U
     } else {
       // Insert new exercise
       const { data, error } = await supabase
-        .from('user_exercises')
+        .from('exercises')
         .insert([exerciseData])
         .select()
         .single()

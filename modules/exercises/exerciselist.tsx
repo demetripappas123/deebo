@@ -121,11 +121,11 @@ export default function ExerciseList() {
   }, [filteredBaseExercises])
 
   const yourExercises = useMemo(() => {
-    return filteredUserExercises.map(ex => ({ ...ex, exerciseType: 'user' as const, user_id: ex.user_id }))
+    return filteredUserExercises.map(ex => ({ ...ex, exerciseType: 'user' as const, user_id: ex.trainer_id || undefined }))
   }, [filteredUserExercises])
 
   const communityExercisesList = useMemo(() => {
-    return filteredCommunityExercises.map(ex => ({ ...ex, exerciseType: 'community' as const, created_by: ex.created_by }))
+    return filteredCommunityExercises.map(ex => ({ ...ex, exerciseType: 'community' as const, created_by: ex.trainer_id || null }))
   }, [filteredCommunityExercises])
 
   // Filter exercises based on selected filter
@@ -321,7 +321,7 @@ export default function ExerciseList() {
       if (exercise.exerciseType === 'user' && user?.id) {
         success = await deleteUserExercise(exercise.id, user.id)
       } else if (exercise.exerciseType === 'community') {
-        success = await deleteCommunityExercise(exercise.id)
+        success = await deleteCommunityExercise(exercise.id, user?.id || null)
       }
 
       if (!success) throw new Error('Failed to delete exercise')

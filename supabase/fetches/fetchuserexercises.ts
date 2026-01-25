@@ -2,21 +2,22 @@ import { supabase } from '@/supabase/supabaseClient'
 import { ExerciseLibraryItem } from './fetchexlib'
 
 export type UserExercise = ExerciseLibraryItem & {
-  user_id: string
+  trainer_id: string | null
 }
 
 export async function fetchUserExercises(userId?: string | null): Promise<UserExercise[]> {
   try {
-    let query = supabase
-      .from('user_exercises')
-      .select('*')
-      .order('name', { ascending: true })
-
-    if (userId) {
-      query = query.eq('user_id', userId)
+    if (!userId) {
+      return []
     }
 
-    const { data, error } = await query
+    // Fetch from unified exercises table where trainer_id matches and is_private = true
+    const { data, error } = await supabase
+      .from('exercises')
+      .select('*')
+      .eq('trainer_id', userId)
+      .eq('is_private', true)
+      .order('name', { ascending: true })
 
     if (error) {
       console.error('Error fetching user exercises:', error)
@@ -31,7 +32,7 @@ export async function fetchUserExercises(userId?: string | null): Promise<UserEx
       img_url: item.img_url || null,
       variations: item.variations || null,
       created_at: item.created_at || new Date().toISOString(),
-      user_id: item.user_id,
+      trainer_id: item.trainer_id,
     })) as UserExercise[]
   } catch (err) {
     console.error('Error fetching user exercises:', err)

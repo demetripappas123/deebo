@@ -19,14 +19,15 @@ export async function upsertCommunityExercise(exercise: CommunityExerciseInput):
       gif_url: exercise.gif_url?.trim() || null,
       img_url: exercise.img_url?.trim() || null,
       variations: exercise.variations || null,
-      created_by: exercise.created_by || null,
+      trainer_id: exercise.created_by || null, // Use trainer_id instead of created_by
+      is_private: false, // Community exercises are public
       updated_at: new Date().toISOString(),
     }
 
     if (exercise.id) {
       // Update existing exercise
       const { data, error } = await supabase
-        .from('community_exercises')
+        .from('exercises')
         .update(exerciseData)
         .eq('id', exercise.id)
         .select()
@@ -37,7 +38,7 @@ export async function upsertCommunityExercise(exercise: CommunityExerciseInput):
     } else {
       // Insert new exercise
       const { data, error } = await supabase
-        .from('community_exercises')
+        .from('exercises')
         .insert([exerciseData])
         .select()
         .single()
