@@ -2,30 +2,45 @@ import { supabase } from '@/supabase/supabaseClient'
 
 export type NutritionProgram = {
   id: string
+  trainer_id: string | null
   name: string
-  user_id?: string | null
-  created_at?: string
-  updated_at?: string
+  description: string | null
+  metadata: object | null
+  start_date: string | null
+  end_date: string | null
+  created_at: string
+  updated_at: string
 }
 
-export async function fetchNutritionPrograms(userId?: string | null): Promise<NutritionProgram[]> {
+export async function fetchNutritionPrograms(trainerId?: string | null): Promise<NutritionProgram[]> {
   try {
     let query = supabase
       .from('nutrition_programs')
       .select('*')
 
-    if (userId) {
-      query = query.eq('user_id', userId)
+    if (trainerId) {
+      query = query.eq('trainer_id', trainerId)
     }
 
     const { data, error } = await query
 
     if (error) {
-      // If table doesn't exist, return empty array
-      if (error.code === 'PGRST116' || error.message.includes('does not exist') || error.message.includes('relation')) {
+      // Log the actual error for debugging
+      console.error('Error fetching nutrition programs:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      })
+      
+      // Only return empty array for actual table-not-found errors
+      if (error.code === 'PGRST116' || 
+          (error.message && error.message.includes('relation') && error.message.includes('does not exist'))) {
         console.warn('nutrition_programs table does not exist yet')
         return []
       }
+      
+      // For other errors, throw so we can see what's actually wrong
       throw error
     }
 

@@ -13,9 +13,11 @@ export type Food = {
 
 export async function fetchFoods(searchQuery?: string): Promise<Food[]> {
   try {
+    // Fetch base foods (where trainer_id is null)
     let query = supabase
       .from('foods')
       .select('*')
+      .is('trainer_id', null)
       .order('description', { ascending: true })
       .limit(1000) // Limit to prevent too many results
 
