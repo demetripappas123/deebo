@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash } from "lucide-react"
 import { Food } from "@/supabase/fetches/fetchfoods"
 import { NutritionDay } from "@/supabase/fetches/fetchnutritionweeks"
+import { fetchFoodUnits, FoodUnit } from "@/supabase/fetches/fetchfoodunits"
 import {
   Command,
   CommandInput,
@@ -19,7 +20,7 @@ type LocalMeal = {
   meal_time: string | null
   food_id: number | null
   portion_size: number | null
-  portion_unit: string | null
+  portion_unit: number | null // Now stores food_unit id
   calories: number | null
   protein_g: number | null
   carbs_g: number | null
@@ -56,6 +57,18 @@ export default function AddNutritionDayDialog({
   const [meals, setMeals] = useState<LocalMeal[]>([])
   const [openCombobox, setOpenCombobox] = useState<{ [key: number]: boolean }>({})
   const [searchValue, setSearchValue] = useState<{ [key: number]: string }>({})
+  const [foodUnits, setFoodUnits] = useState<FoodUnit[]>([])
+
+  // Fetch food units when dialog opens
+  useEffect(() => {
+    if (open) {
+      const loadFoodUnits = async () => {
+        const units = await fetchFoodUnits()
+        setFoodUnits(units)
+      }
+      loadFoodUnits()
+    }
+  }, [open])
 
   // Reset form state when dialog opens, or load existing data if editing
   useEffect(() => {
@@ -63,17 +76,22 @@ export default function AddNutritionDayDialog({
       if (dayId && initialDayData) {
         // Edit mode: load existing data
         setDayOfWeek(initialDayData.day_of_week)
-        const mappedMeals: LocalMeal[] = initialDayData.meals.map(meal => ({
-          meal_time: meal.meal_time,
-          food_id: meal.food_id,
-          portion_size: meal.portion_size,
-          portion_unit: meal.portion_unit,
-          calories: meal.calories,
-          protein_g: meal.protein_g,
-          carbs_g: meal.carbs_g,
-          fat_g: meal.fat_g,
-          notes: meal.notes,
-        }))
+        const mappedMeals: LocalMeal[] = initialDayData.meals.map(meal => {
+          // Get first food from day_meal_foods array
+          const firstFood = meal.foods && meal.foods.length > 0 ? meal.foods[0] : null
+          
+          return {
+            meal_time: meal.meal_time,
+            food_id: firstFood?.food_id || null,
+            portion_size: firstFood?.amount || null,
+            portion_unit: firstFood?.unit || null, // food_unit id
+            calories: null, // Not stored in new schema
+            protein_g: null,
+            carbs_g: null,
+            fat_g: null,
+            notes: meal.description || null,
+          }
+        })
         setMeals(mappedMeals)
       } else {
         // Add mode: reset all form state
@@ -142,29 +160,21 @@ export default function AddNutritionDayDialog({
 
         {/* Day info */}
         <div className="space-y-4 mb-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-foreground">Day of Week</label>
-              <Input
-                type="number"
-                min="0"
-                max="6"
-                value={dayOfWeek}
-                onChange={(e) => setDayOfWeek(parseInt(e.target.value) || 0)}
-                placeholder="0-6"
-                className="bg-input text-foreground border-border placeholder-muted-foreground"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1 text-foreground">Date (Optional)</label>
-              <Input
-                type="date"
-                value={date || ""}
-                onChange={(e) => setDate(e.target.value || null)}
-                className="bg-input text-foreground border-border placeholder-muted-foreground"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 text-foreground">Day of Week</label>
+            <select
+              value={dayOfWeek}
+              onChange={(e) => setDayOfWeek(e.target.value)}
+              className="w-full px-3 py-2 bg-input text-foreground border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="Monday">Monday</option>
+              <option value="Tuesday">Tuesday</option>
+              <option value="Wednesday">Wednesday</option>
+              <option value="Thursday">Thursday</option>
+              <option value="Friday">Friday</option>
+              <option value="Saturday">Saturday</option>
+              <option value="Sunday">Sunday</option>
+            </select>
           </div>
         </div>
 
@@ -283,12 +293,18 @@ export default function AddNutritionDayDialog({
 
                   <div>
                     <label className="text-sm text-foreground">Unit</label>
-                    <Input
+                    <select
                       value={meal.portion_unit || ""}
-                      onChange={(e) => updateMeal(index, "portion_unit", e.target.value || null)}
-                      placeholder="e.g. g, oz, serving"
-                      className="bg-input text-foreground border-border placeholder-muted-foreground"
-                    />
+                      onChange={(e) => updateMeal(index, "portion_unit", e.target.value ? parseInt(e.target.value) : null)}
+                      className="w-full px-3 py-2 bg-input text-foreground border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="">Select unit</option>
+                      {foodUnits.map(unit => (
+                        <option key={unit.id} value={unit.id}>
+                          {unit.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

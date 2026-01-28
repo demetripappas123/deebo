@@ -1,27 +1,24 @@
 'use client'
 
 import { supabase } from '@/supabase/supabaseClient'
+import { fetchDayMealFoods, DayMealFood } from './fetchdaymealfoods'
 
 export type DayMeal = {
-  id: number
-  day_id: number
-  meal_time: string | null
-  sequence: number
-  food_id: number | null
-  portion_size: number | null
-  portion_unit: string | null
-  calories: number | null
-  protein_g: number | null
-  carbs_g: number | null
-  fat_g: number | null
-  notes: string | null
-  metadata: object | null
+  id: string // uuid
+  name: string | null
+  meal_template_id: string | null
+  nutrition_day: string // uuid, references nutrition_days.id
+  meal_time: string | null // timestamp
+  meal_number: number | null
   created_at: string
   updated_at: string
+  foods: DayMealFood[] // Foods from meals_foods_programmed table
 }
 
+// DayMealFood is imported from fetchdaymealfoods.ts
+
 export type NutritionDay = {
-  id: number
+  id: string // uuid (since day_meals.nutrition_day references this)
   nutrition_week_id: number
   day_of_week: string
   created_at: string
@@ -73,14 +70,14 @@ export async function fetchNutritionWeeks(programId: string): Promise<NutritionW
       .from('nutrition_days')
       .select('*')
       .in('nutrition_week_id', weekIds)
-      .order('day_of_week', { ascending: true })
+      .order('"day of week"', { ascending: true })
 
     if (daysError) {
       console.error('fetchNutritionWeeks supabase error (days):', daysError)
       // Continue even if days fetch fails
     }
 
-    // Get all day IDs
+    // Get all day IDs (these are now uuid strings)
     const dayIds = daysData?.map(day => day.id) || []
 
     // Fetch all meals for these days
@@ -89,8 +86,8 @@ export async function fetchNutritionWeeks(programId: string): Promise<NutritionW
       const { data: meals, error: mealsError } = await supabase
         .from('day_meals')
         .select('*')
-        .in('day_id', dayIds)
-        .order('sequence', { ascending: true })
+        .in('nutrition_day', dayIds)
+        .order('meal_number', { ascending: true, nullsFirst: false })
 
       if (mealsError) {
         console.error('fetchNutritionWeeks supabase error (meals):', mealsError)
@@ -99,29 +96,37 @@ export async function fetchNutritionWeeks(programId: string): Promise<NutritionW
       }
     }
 
-    // Group meals by day_id
-    const mealsByDayId = new Map<number, DayMeal[]>()
+    // Fetch all meal foods for these meals
+    const mealIds = mealsData.map(meal => meal.id)
+    const mealFoods = mealIds.length > 0 ? await fetchDayMealFoods(mealIds) : []
+    
+    // Group meal foods by meal_id
+    const foodsByMealId = new Map<string, DayMealFood[]>()
+    mealFoods.forEach(food => {
+      const mealId = food.meal_id
+      if (!foodsByMealId.has(mealId)) {
+        foodsByMealId.set(mealId, [])
+      }
+      foodsByMealId.get(mealId)!.push(food)
+    })
+
+    // Group meals by nutrition_day (uuid string)
+    const mealsByDayId = new Map<string, DayMeal[]>()
     mealsData.forEach(meal => {
-      const dayId = meal.day_id
+      const dayId = String(meal.nutrition_day) // Ensure it's a string
       if (!mealsByDayId.has(dayId)) {
         mealsByDayId.set(dayId, [])
       }
       mealsByDayId.get(dayId)!.push({
         id: meal.id,
-        day_id: meal.day_id,
+        name: meal.name,
+        meal_template_id: meal.meal_template_id,
+        nutrition_day: meal.nutrition_day,
         meal_time: meal.meal_time,
-        sequence: meal.sequence,
-        food_id: meal.food_id,
-        portion_size: meal.portion_size,
-        portion_unit: meal.portion_unit,
-        calories: meal.calories,
-        protein_g: meal.protein_g,
-        carbs_g: meal.carbs_g,
-        fat_g: meal.fat_g,
-        notes: meal.notes,
-        metadata: meal.metadata,
+        meal_number: meal.meal_number,
         created_at: meal.created_at,
         updated_at: meal.updated_at,
+        foods: foodsByMealId.get(meal.id) || [],
       })
     })
 
@@ -130,16 +135,17 @@ export async function fetchNutritionWeeks(programId: string): Promise<NutritionW
     if (daysData) {
       daysData.forEach(day => {
         const weekId = day.nutrition_week_id
+        const dayId = String(day.id) // Convert to string for UUID
         if (!daysByWeekId.has(weekId)) {
           daysByWeekId.set(weekId, [])
         }
         daysByWeekId.get(weekId)!.push({
-          id: day.id,
+          id: dayId,
           nutrition_week_id: day.nutrition_week_id,
-          day_of_week: day.day_of_week,
+          day_of_week: day['day of week'] || day.day_of_week, // Handle both possible column names
           created_at: day.created_at,
           updated_at: day.updated_at,
-          meals: mealsByDayId.get(day.id) || [],
+          meals: mealsByDayId.get(dayId) || [],
         })
       })
     }

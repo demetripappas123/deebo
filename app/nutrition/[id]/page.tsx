@@ -6,11 +6,13 @@ import { supabase } from '@/supabase/supabaseClient'
 import { fetchNutritionWeeks, NutritionWeek } from '@/supabase/fetches/fetchnutritionweeks'
 import { upsertNutritionWeek } from '@/supabase/upserts/upsertnutritionweek'
 import { upsertNutritionDay, deleteNutritionDay } from '@/supabase/upserts/upsertnutritionday'
-import { upsertDayMeal, deleteDayMeal, getNextMealSequence } from '@/supabase/upserts/upsertdaymeal'
+import { upsertDayMeal, deleteDayMeal, getNextMealNumber } from '@/supabase/upserts/upsertdaymeal'
+import { upsertDayMealFood, deleteDayMealFood } from '@/supabase/upserts/upsertdaymealfood'
 import { fetchNutritionPrograms, NutritionProgram } from '@/supabase/fetches/fetchnutritionprograms'
 import { fetchFoods, Food } from '@/supabase/fetches/fetchfoods'
 import { fetchUserFoods } from '@/supabase/fetches/fetchuserfoods'
 import { fetchCommunityFoods } from '@/supabase/fetches/fetchcommunityfoods'
+import { fetchFoodUnits, FoodUnit } from '@/supabase/fetches/fetchfoodunits'
 import { Plus, Trash2, Edit } from 'lucide-react'
 import { useAuth } from '@/context/authcontext'
 import AddNutritionDayDialog from '@/modules/nutrition/addnutritiondaydialog'
@@ -26,6 +28,7 @@ export default function NutritionProgramPage() {
   const [weeks, setWeeks] = useState<NutritionWeek[]>([])
   const [loading, setLoading] = useState(true)
   const [foodLibrary, setFoodLibrary] = useState<Food[]>([])
+  const [foodUnits, setFoodUnits] = useState<FoodUnit[]>([])
 
   // For controlling the AddDayDialog per week
   const [activeWeekId, setActiveWeekId] = useState<number | null>(null)
@@ -63,14 +66,16 @@ export default function NutritionProgramPage() {
           setProgram(programData)
         }
 
-        // Load food library
-        const [baseFoods, userFoods, communityFoods] = await Promise.all([
+        // Load food library and food units
+        const [baseFoods, userFoods, communityFoods, units] = await Promise.all([
           fetchFoods(),
           fetchUserFoods(user?.id),
-          fetchCommunityFoods()
+          fetchCommunityFoods(),
+          fetchFoodUnits()
         ])
         const allFoods = [...baseFoods, ...userFoods, ...communityFoods]
         setFoodLibrary(allFoods)
+        setFoodUnits(units)
 
         await refreshWeeks()
       } catch (err) {
@@ -108,13 +113,13 @@ export default function NutritionProgramPage() {
 
   const handleAddDaySubmit = async (payload: { 
     dayTitle: string
-    dayOfWeek: number
+    dayOfWeek: string
     date: string | null
     meals: Array<{
       meal_time: string | null
       food_id: number | null
       portion_size: number | null
-      portion_unit: string | null
+      portion_unit: number | null // Now stores food_unit id
       calories: number | null
       protein_g: number | null
       carbs_g: number | null
@@ -146,10 +151,15 @@ export default function NutritionProgramPage() {
         }
         dayId = updatedDay.id
 
-        // Delete existing meals and recreate
+        // Delete existing meals and their foods, then recreate
         const day = week.days.find(d => d.id === dayId)
         if (day) {
           for (const meal of day.meals) {
+            // Delete all foods for this meal first
+            for (const food of meal.foods) {
+              await deleteDayMealFood(food.id)
+            }
+            // Then delete the meal
             await deleteDayMeal(meal.id)
           }
         }
@@ -171,19 +181,33 @@ export default function NutritionProgramPage() {
       // Add meals
       for (let i = 0; i < payload.meals.length; i++) {
         const meal = payload.meals[i]
-        await upsertDayMeal({
-          day_id: dayId,
+        
+        // Create the meal first
+        const createdMeal = await upsertDayMeal({
+          nutrition_day: dayId,
+          name: meal.meal_time || `Meal ${i + 1}`,
+          description: meal.notes || null,
           meal_time: meal.meal_time,
-          sequence: i + 1,
-          food_id: meal.food_id,
-          portion_size: meal.portion_size,
-          portion_unit: meal.portion_unit,
-          calories: meal.calories,
-          protein_g: meal.protein_g,
-          carbs_g: meal.carbs_g,
-          fat_g: meal.fat_g,
-          notes: meal.notes,
+          meal_number: i + 1,
+          meal_template_id: null,
         })
+        
+        if (!createdMeal) {
+          console.error('Failed to create meal')
+          continue
+        }
+        
+        // Then create the food entry for this meal if food_id is provided
+        if (meal.food_id) {
+          const food = foodLibrary.find(f => f.id === meal.food_id)
+          await upsertDayMealFood({
+            meal_id: createdMeal.id,
+            food_id: meal.food_id,
+            food_name: food?.description || null,
+            amount: meal.portion_size,
+            unit: meal.portion_unit, // food_unit id
+          })
+        }
       }
 
       // Refresh weeks to show the updated/new day
@@ -264,7 +288,12 @@ export default function NutritionProgramPage() {
 
               <div className="flex gap-2 flex-wrap items-start justify-between">
                 <div className="flex gap-2 flex-wrap items-start">
-                  {week.days.map(day => (
+                  {week.days
+                    .sort((a, b) => {
+                      const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                      return dayOrder.indexOf(a.day_of_week) - dayOrder.indexOf(b.day_of_week)
+                    })
+                    .map(day => (
                     <div
                       key={day.id}
                       className="p-3 border border-border rounded-md bg-background min-w-[250px] relative"
@@ -294,30 +323,34 @@ export default function NutritionProgramPage() {
                           <p className="text-xs text-muted-foreground">No meals</p>
                         ) : (
                           day.meals.map(meal => {
-                            const food = foodLibrary.find(f => f.id === meal.food_id)
                             return (
                               <div key={meal.id} className="text-xs border-l-2 pl-2 border-border">
                                 <div className="font-medium text-foreground">
-                                  {meal.meal_time || `Meal ${meal.sequence}`}
+                                  {meal.name || (meal.meal_time 
+                                    ? new Date(meal.meal_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                    : meal.meal_number 
+                                      ? `Meal ${meal.meal_number}`
+                                      : 'Meal')}
                                 </div>
-                                {food && (
-                                  <div className="text-muted-foreground">
-                                    {food.description}
-                                    {meal.portion_size && (
-                                      <span> - {meal.portion_size} {meal.portion_unit || 'g'}</span>
-                                    )}
-                                  </div>
+                                {meal.description && (
+                                  <div className="text-muted-foreground italic text-xs mb-1">{meal.description}</div>
                                 )}
-                                {(meal.calories || meal.protein_g || meal.carbs_g || meal.fat_g) && (
-                                  <div className="text-muted-foreground mt-1">
-                                    {meal.calories && `${meal.calories} cal`}
-                                    {meal.protein_g && ` • ${meal.protein_g}g P`}
-                                    {meal.carbs_g && ` • ${meal.carbs_g}g C`}
-                                    {meal.fat_g && ` • ${meal.fat_g}g F`}
-                                  </div>
-                                )}
-                                {meal.notes && (
-                                  <div className="text-muted-foreground italic">{meal.notes}</div>
+                                {meal.foods && meal.foods.length > 0 && meal.foods.map((foodItem: any, idx: number) => {
+                                  const food = foodLibrary.find(f => f.id === foodItem.food_id)
+                                  const foodName = food?.description || foodItem.food_name || 'Unknown food'
+                                  const unit = foodUnits.find(u => u.id === foodItem.unit)
+                                  const unitName = unit?.name || (foodItem.unit ? `unit ${foodItem.unit}` : '')
+                                  return (
+                                    <div key={idx} className="text-muted-foreground">
+                                      {foodName}
+                                      {foodItem.amount && (
+                                        <span> - {foodItem.amount} {unitName}</span>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                                {(!meal.foods || meal.foods.length === 0) && (
+                                  <div className="text-muted-foreground italic">No foods</div>
                                 )}
                               </div>
                             )

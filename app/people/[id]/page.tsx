@@ -11,9 +11,6 @@ import { fetchSessionWithExercises, SessionWithExercises, Session } from '@/supa
 import { WorkoutWithData } from '@/supabase/fetches/fetchpersonworkoutswithdata'
 import { upsertWorkout } from '@/supabase/upserts/upsertworkout'
 import { Plus } from 'lucide-react'
-import EditNutrition from '@/modules/clients/editnutrition'
-import NutritionChart from '@/modules/clients/nutritionchart'
-import CompactNutritionGoals from '@/modules/clients/compactnutritiongoals'
 import WorkoutVolumeChart from '@/modules/clients/workoutvolumechart'
 import RPERIRChart from '@/modules/clients/rperirchart'
 import WeightProgressionChart from '@/modules/clients/weightprogressionchart'
@@ -28,6 +25,12 @@ import { upsertSession, upsertSessionExercise, upsertExerciseSet, upsertWorkoutE
 import { parseRangeInput, formatRangeDisplay } from '@/supabase/utils/rangeparse'
 import { upsertClient } from '@/supabase/upserts/upsertperson'
 import { Utensils, Dumbbell, Pencil, Activity, UserCheck, Plus as PlusIcon, Trash, X, Box, DollarSign, FileText, Calendar, List, Check } from 'lucide-react'
+import { AssignedMeal, fetchAssignedMeals } from '@/supabase/fetches/fetchassignedmeals'
+import AssignMealDialogContent from '@/modules/clients/assignmealdialog'
+import { useAuth } from '@/context/authcontext'
+import NutritionOverview from '@/modules/clients/nutritionoverview'
+import NutritionSubTabs from '@/modules/clients/nutritionsubtabs'
+import MealsManagement from '@/modules/clients/mealsmanagement'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -58,6 +61,7 @@ import {
 export default function PersonPage() {
   const params = useParams()
   const router = useRouter()
+  const { user } = useAuth()
 
   const [person, setPerson] = useState<Person | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
@@ -98,12 +102,19 @@ export default function PersonPage() {
   const [packages, setPackages] = useState<PackageType[] | null>(null)
   const [payments, setPayments] = useState<Payment[] | null>(null)
   const [contracts, setContracts] = useState<Contract[] | null>(null)
+  const [assignedMeals, setAssignedMeals] = useState<AssignedMeal[] | null>(null)
   
   // Loading states for each tab
   const [nutritionLoading, setNutritionLoading] = useState(false)
   const [packagesLoading, setPackagesLoading] = useState(false)
   const [paymentsLoading, setPaymentsLoading] = useState(false)
   const [contractsLoading, setContractsLoading] = useState(false)
+  
+  // Meal view state
+  const [mealView, setMealView] = useState<'list' | 'calendar'>('list')
+  const [nutritionSubTab, setNutritionSubTab] = useState<'overview' | 'meals'>('overview')
+  const [assignMealOpen, setAssignMealOpen] = useState(false)
+  const [assignMealDate, setAssignMealDate] = useState<string | undefined>(undefined)
 
   const isClient = person?.converted_at !== null && person?.converted_at !== undefined
   const isProspect = !isClient
@@ -167,6 +178,31 @@ export default function PersonPage() {
     loadNutritionData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, person?.id])
+
+  // Load assigned meals when meals sub-tab is activated
+  useEffect(() => {
+    const loadAssignedMeals = async () => {
+      if (activeTab !== 'nutrition' || nutritionSubTab !== 'meals' || !person) return
+      const isClient = person.converted_at !== null && person.converted_at !== undefined
+      if (!isClient) return
+      // If already loaded, don't reload
+      if (assignedMeals !== null) return
+
+      setNutritionLoading(true)
+      try {
+        const meals = await fetchAssignedMeals(person.id)
+        setAssignedMeals(meals)
+      } catch (err) {
+        console.error('Error loading assigned meals:', err)
+        setAssignedMeals([])
+      } finally {
+        setNutritionLoading(false)
+      }
+    }
+
+    loadAssignedMeals()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, nutritionSubTab, person?.id])
 
   // Load packages data when packages tab is activated
   useEffect(() => {
@@ -490,51 +526,43 @@ export default function PersonPage() {
             </div>
           ) : (
             <>
-              {/* Nutrition Goals */}
-              <div className="p-3 bg-card border border-border rounded-md mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-lg font-semibold text-foreground">Nutrition Goals</h2>
-                </div>
-                <CompactNutritionGoals
+              <NutritionSubTabs
+                activeTab={nutritionSubTab}
+                onTabChange={setNutritionSubTab}
+              />
+
+              {nutritionSubTab === 'overview' && (
+                <NutritionOverview
                   clientId={person.id}
-                  initialGoals={nutritionGoals || []}
-                  onUpdate={async () => {
-                    if (person) {
-                      try {
-                        const goalsData = await fetchClientNutritionGoals(person.id)
-                        setNutritionGoals(goalsData || [])
-                      } catch (err) {
-                        console.error('Error refreshing nutrition goals:', err)
-                      }
-                    }
+                  nutritionEntries={nutritionEntries || []}
+                  nutritionGoals={nutritionGoals || []}
+                  isEditingNutrition={isEditingNutrition}
+                  onEditClick={() => setIsEditingNutrition(true)}
+                  onSave={handleSaveNutrition}
+                  onCancel={() => setIsEditingNutrition(false)}
+                  onGoalsUpdate={setNutritionGoals}
+                />
+              )}
+
+              {nutritionSubTab === 'meals' && (
+                <MealsManagement
+                  assignedMeals={assignedMeals}
+                  personId={person.id}
+                  mealView={mealView}
+                  onMealViewChange={setMealView}
+                  onAssignMealClick={() => {
+                    setAssignMealDate(undefined)
+                    setAssignMealOpen(true)
+                  }}
+                  onDateClick={(date) => {
+                    setAssignMealDate(date.toISOString().split('T')[0])
+                    setAssignMealOpen(true)
+                  }}
+                  onMealUpdate={async (meals) => {
+                    setAssignedMeals(meals)
                   }}
                 />
-              </div>
-
-              <div className="p-4 bg-card border border-border rounded-md">
-                <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-lg font-semibold text-foreground">Nutrition</h2>
-                  {!isEditingNutrition && (
-                    <button
-                      onClick={() => setIsEditingNutrition(true)}
-                      className="px-3 py-1 bg-primary hover:bg-primary/90 rounded-md cursor-pointer text-primary-foreground text-sm"
-                    >
-                      Edit Nutrition Information
-                    </button>
-                  )}
-                </div>
-
-                {isEditingNutrition ? (
-                  <EditNutrition
-                    clientId={person.id}
-                    initialEntries={nutritionEntries || []}
-                    onSave={handleSaveNutrition}
-                    onCancel={() => setIsEditingNutrition(false)}
-                  />
-                ) : (
-                  <NutritionChart entries={nutritionEntries || []} goals={nutritionGoals || []} />
-                )}
-              </div>
+              )}
             </>
           )}
         </>
@@ -1396,6 +1424,32 @@ export default function PersonPage() {
             }
           }}
         />
+      )}
+
+      {/* Assign Meal Dialog */}
+      {person && (
+        <Dialog open={assignMealOpen} onOpenChange={setAssignMealOpen}>
+          <DialogContent className="bg-card border-border text-foreground max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Assign Meal</DialogTitle>
+              <DialogDescription>
+                Select a meal from your nutrition programs to assign to this client.
+              </DialogDescription>
+            </DialogHeader>
+            <AssignMealDialogContent
+              personId={person.id}
+              initialDate={assignMealDate}
+              onMealAssigned={async () => {
+                if (person) {
+                  const meals = await fetchAssignedMeals(person.id)
+                  setAssignedMeals(meals)
+                }
+                setAssignMealOpen(false)
+              }}
+              onCancel={() => setAssignMealOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )
